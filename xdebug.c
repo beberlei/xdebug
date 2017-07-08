@@ -61,6 +61,7 @@
 #include "xdebug_stack.h"
 #include "xdebug_superglobals.h"
 #include "xdebug_tracing.h"
+#include "xdebug_gc_stats.h"
 #include "usefulstuff.h"
 
 /* execution redirection functions */
@@ -203,6 +204,8 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_get_code_coverage,     xdebug_void_args)
 	PHP_FE(xdebug_code_coverage_started, xdebug_void_args)
 	PHP_FE(xdebug_get_function_count,    xdebug_void_args)
+
+	PHP_FE(xdebug_gc_stats,              xdebug_void_args)
 
 	PHP_FE(xdebug_dump_superglobals,     xdebug_void_args)
 	PHP_FE(xdebug_get_headers,           xdebug_void_args)
@@ -372,6 +375,10 @@ PHP_INI_BEGIN()
 
 	/* Scream support */
 	STD_PHP_INI_BOOLEAN("xdebug.scream",                 "0",           PHP_INI_ALL,    OnUpdateBool,   do_scream,            zend_xdebug_globals, xdebug_globals)
+
+	/* GC Stats support */
+	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",       "0",            PHP_INI_ALL,    OnUpdateBool,   gc_stats_enabled,       zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_BOOLEAN("xdebug.gc_show_report",       "0",             PHP_INI_ALL,    OnUpdateBool,   gc_show_report,       zend_xdebug_globals, xdebug_globals)
 PHP_INI_END()
 
 static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
@@ -700,6 +707,10 @@ PHP_MINIT_FUNCTION(xdebug)
 	xdebug_old_error_cb = zend_error_cb;
 	xdebug_new_error_cb = xdebug_error_cb;
 
+	/* Replace garbage collection handler with our own */
+	xdebug_old_gc_collect_cycles = gc_collect_cycles;
+	gc_collect_cycles = xdebug_gc_collect_cycles;
+
 	/* Get reserved offset */
 	zend_xdebug_global_offset = zend_get_resource_handle(&dummy_ext);
 
@@ -850,6 +861,7 @@ PHP_MSHUTDOWN_FUNCTION(xdebug)
 	zend_execute_ex = xdebug_old_execute_ex;
 	zend_execute_internal = xdebug_old_execute_internal;
 	zend_error_cb = xdebug_old_error_cb;
+	gc_collect_cycles = xdebug_old_gc_collect_cycles;
 
 	zend_hash_destroy(&XG(aggr_calls));
 
@@ -1191,6 +1203,9 @@ PHP_RINIT_FUNCTION(xdebug)
 	XG(profiler_enabled) = 0;
 	XG(breakpoints_allowed) = 1;
 
+	/* Initialize gc statistics */
+	array_init(&XG(gc_runs));
+
 	/* Initialize some debugger context properties */
 	XG(context).program_name   = NULL;
 	XG(context).list.last_file = NULL;
@@ -1330,6 +1345,14 @@ PHP_RSHUTDOWN_FUNCTION(xdebug)
 {
 	/* Signal that we're no longer in a request */
 	XG(in_execution) = 0;
+
+	if (xdebug_gc_stats_report_enabled()) {
+		xdebug_gc_stats_show_report();
+	}
+
+	/* Cleanup gc stats */
+	zval_ptr_dtor(&XG(gc_runs));
+	ZVAL_NULL(&XG(gc_runs));
 
 	return SUCCESS;
 }
@@ -2336,6 +2359,11 @@ PHP_FUNCTION(xdebug_peak_memory_usage)
 PHP_FUNCTION(xdebug_time_index)
 {
 	RETURN_DOUBLE(xdebug_get_utime() - XG(start_time));
+}
+
+PHP_FUNCTION(xdebug_gc_stats)
+{
+    RETURN_ZVAL(&XG(gc_runs), 1, 0);
 }
 
 #if PHP_VERSION_ID >= 70100
