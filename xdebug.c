@@ -205,7 +205,7 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_code_coverage_started, xdebug_void_args)
 	PHP_FE(xdebug_get_function_count,    xdebug_void_args)
 
-	PHP_FE(xdebug_gc_stats,              xdebug_void_args)
+	PHP_FE(xdebug_get_gc_stats,          xdebug_void_args)
 
 	PHP_FE(xdebug_dump_superglobals,     xdebug_void_args)
 	PHP_FE(xdebug_get_headers,           xdebug_void_args)
@@ -2361,7 +2361,7 @@ PHP_FUNCTION(xdebug_time_index)
 	RETURN_DOUBLE(xdebug_get_utime() - XG(start_time));
 }
 
-PHP_FUNCTION(xdebug_gc_stats)
+PHP_FUNCTION(xdebug_get_gc_stats)
 {
     RETURN_ZVAL(&XG(gc_runs), 1, 0);
 }

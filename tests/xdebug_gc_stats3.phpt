@@ -22,7 +22,7 @@ function bar() {
 
 foo();
 
-$data = xdebug_gc_stats();
+$data = xdebug_get_gc_stats();
 
 var_dump($data);
 --EXPECTF--
