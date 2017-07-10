@@ -87,8 +87,6 @@ int xdebug_gc_stats_report_enabled()
 
 void xdebug_gc_stats_show_report()
 {
-	zend_string *key;
-	ulong num_key;
 	zval *run, *collected, *duration, *memory_before, *memory_after, *function, *class;
 
 	php_printf("## Garbage Collection Report ##\n");
@@ -97,61 +95,59 @@ void xdebug_gc_stats_show_report()
 	php_printf("Collected | Efficiency%% | Duration | Memory Before | Memory After | Reduction%% | Function\n");
 	php_printf("----------|-------------|----------|---------------|--------------|------------|---------\n");
 
-	ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL(XG(gc_runs)), num_key, key, run) {
-		if (!key) {
-			if (!(collected = zend_hash_str_find(Z_ARRVAL_P(run), "collected", sizeof("collected") - 1))) {
-				continue;
-			}
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL(XG(gc_runs)), run) {
+        if (!(collected = zend_hash_str_find(Z_ARRVAL_P(run), "collected", sizeof("collected") - 1))) {
+            continue;
+        }
 
-			if (!(duration = zend_hash_str_find(Z_ARRVAL_P(run), "duration", sizeof("duration") - 1))) {
-				continue;
-			}
+        if (!(duration = zend_hash_str_find(Z_ARRVAL_P(run), "duration", sizeof("duration") - 1))) {
+            continue;
+        }
 
-			if (!(memory_before = zend_hash_str_find(Z_ARRVAL_P(run), "memory_before", sizeof("memory_before") - 1))) {
-				continue;
-			}
+        if (!(memory_before = zend_hash_str_find(Z_ARRVAL_P(run), "memory_before", sizeof("memory_before") - 1))) {
+            continue;
+        }
 
-			if (!(memory_after = zend_hash_str_find(Z_ARRVAL_P(run), "memory_after", sizeof("memory_after") - 1))) {
-				continue;
-			}
+        if (!(memory_after = zend_hash_str_find(Z_ARRVAL_P(run), "memory_after", sizeof("memory_after") - 1))) {
+            continue;
+        }
 
-			function = zend_hash_str_find(Z_ARRVAL_P(run), "function", sizeof("function") - 1);
-			class = zend_hash_str_find(Z_ARRVAL_P(run), "class", sizeof("class") - 1);
+        function = zend_hash_str_find(Z_ARRVAL_P(run), "function", sizeof("function") - 1);
+        class = zend_hash_str_find(Z_ARRVAL_P(run), "class", sizeof("class") - 1);
 
-			if (!function) {
-				php_printf(
-					"%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | -\n",
-					Z_LVAL_P(collected),
-					(Z_LVAL_P(collected) / 10000.0) * 100.0,
-					Z_LVAL_P(duration) / 1000.0,
-					Z_LVAL_P(memory_before),
-					Z_LVAL_P(memory_after),
-					(1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0
-				);
-			} else if (!class && function) {
-				php_printf(
-					"%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s\n",
-					Z_LVAL_P(collected),
-					(Z_LVAL_P(collected) / 10000.0) * 100.0,
-					Z_LVAL_P(duration) / 1000.0,
-					Z_LVAL_P(memory_before),
-					Z_LVAL_P(memory_after),
-					(1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0,
-					Z_STRVAL_P(function)
-				);
-			} else if (class && function) {
-				php_printf(
-					"%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s::%s\n",
-					Z_LVAL_P(collected),
-					(Z_LVAL_P(collected) / 10000.0) * 100.0,
-					Z_LVAL_P(duration) / 1000.0,
-					Z_LVAL_P(memory_before),
-					Z_LVAL_P(memory_after),
-					(1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0,
-					Z_STRVAL_P(class),
-					Z_STRVAL_P(function)
-				);
-			}
-		}
+        if (!function) {
+            php_printf(
+                "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | -\n",
+                Z_LVAL_P(collected),
+                (Z_LVAL_P(collected) / 10000.0) * 100.0,
+                Z_LVAL_P(duration) / 1000.0,
+                Z_LVAL_P(memory_before),
+                Z_LVAL_P(memory_after),
+                (1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0
+            );
+        } else if (!class && function) {
+            php_printf(
+                "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s\n",
+                Z_LVAL_P(collected),
+                (Z_LVAL_P(collected) / 10000.0) * 100.0,
+                Z_LVAL_P(duration) / 1000.0,
+                Z_LVAL_P(memory_before),
+                Z_LVAL_P(memory_after),
+                (1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0,
+                Z_STRVAL_P(function)
+            );
+        } else if (class && function) {
+            php_printf(
+                "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s::%s\n",
+                Z_LVAL_P(collected),
+                (Z_LVAL_P(collected) / 10000.0) * 100.0,
+                Z_LVAL_P(duration) / 1000.0,
+                Z_LVAL_P(memory_before),
+                Z_LVAL_P(memory_after),
+                (1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0,
+                Z_STRVAL_P(class),
+                Z_STRVAL_P(function)
+            );
+        }
 	} ZEND_HASH_FOREACH_END();
 }
