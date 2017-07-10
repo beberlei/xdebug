@@ -12,7 +12,7 @@
    | to obtain it through the world-wide-web, please send a note to       |
    | xdebug@derickrethans.nl so we can mail you a copy immediately.       |
    +----------------------------------------------------------------------+
-   | Authors: Derick Rethans <derick@xdebug.org>                          |
+   | Authors: Benjamin Eberlei <kontakt@beberlei.de>					  |
    +----------------------------------------------------------------------+
  */
 
