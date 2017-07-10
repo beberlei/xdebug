@@ -377,8 +377,8 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_BOOLEAN("xdebug.scream",                 "0",           PHP_INI_ALL,    OnUpdateBool,   do_scream,            zend_xdebug_globals, xdebug_globals)
 
 	/* GC Stats support */
-	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",       "0",            PHP_INI_ALL,    OnUpdateBool,   gc_stats_enabled,       zend_xdebug_globals, xdebug_globals)
-	STD_PHP_INI_BOOLEAN("xdebug.gc_show_report",       "0",             PHP_INI_ALL,    OnUpdateBool,   gc_show_report,       zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",        "0",           PHP_INI_ALL,    OnUpdateBool,   gc_stats_enabled,       zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_BOOLEAN("xdebug.gc_show_report",         "0",           PHP_INI_ALL,    OnUpdateBool,   gc_show_report,       zend_xdebug_globals, xdebug_globals)
 PHP_INI_END()
 
 static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
