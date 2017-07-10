@@ -1,6 +1,7 @@
 --TEST--
-xdebug: show garbage collection report
+GC Stats: show garbage collection report
 --INI--
+zend.enable_gc=1
 xdebug.gc_stats_enable=1
 xdebug.gc_show_report=1
 --FILE--

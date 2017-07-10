@@ -1,5 +1,7 @@
 --TEST--
-xdebug: run gc_collect_cyles(); and collect stats
+GC Stats: run gc_collect_cyles(); and collect stats
+--INI--
+zend.enable_gc=1
 --FILE--
 <?php
 

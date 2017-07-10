@@ -1,5 +1,7 @@
 --TEST--
-xdebug: stats about trigger garbage collection manually
+GC Stats: stats about trigger garbage collection manually
+--INI--
+zend.enable_gc=1
 --FILE--
 <?php
 

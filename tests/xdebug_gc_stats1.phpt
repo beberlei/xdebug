@@ -1,5 +1,7 @@
 --TEST--
-xdebug: No memleak, return empty runs
+GC Stats: No memleak, return empty runs
+--INI--
+zend.enable_gc=1
 --FILE--
 <?php
 
