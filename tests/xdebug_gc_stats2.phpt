@@ -19,6 +19,12 @@ gc_collect_cycles();
 $data = xdebug_get_gc_stats();
 
 var_dump($data);
+
+$data = xdebug_get_gc_stats(true);
+echo count($data) . "\n";
+
+$data = xdebug_get_gc_stats();
+echo count($data) . "\n";
 --EXPECTF--
 array(1) {
   [0]=>
@@ -47,4 +53,5 @@ array(1) {
     }
   }
 }
-
+1
+0
