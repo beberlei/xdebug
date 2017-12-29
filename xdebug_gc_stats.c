@@ -38,7 +38,7 @@ int xdebug_gc_collect_cycles(void)
     long int memory;
     double start;
 
-    if (!XG(gc_stats_enabled)) {
+    if (!XG(gc_stats_enabled) || XG(gc_runs) == NULL) {
         return xdebug_old_gc_collect_cycles();
     }
 
