@@ -25,4 +25,14 @@ int xdebug_gc_collect_cycles(void);
 int xdebug_gc_stats_report_enabled();
 void xdebug_gc_stats_show_report();
 
+typedef struct _xdebug_gc_run {
+    zend_long collected;
+    zend_long duration;
+    zend_long memory_before;
+    zend_long memory_after;
+    zend_string *function_name;
+    zend_string *class_name;
+    zval stack;
+} xdebug_gc_run;
+
 #endif

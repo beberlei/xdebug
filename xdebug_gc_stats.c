@@ -32,7 +32,7 @@ int xdebug_gc_collect_cycles(void)
 {
     int ret;
     uint32_t collected;
-    zval run, stack;
+    xdebug_gc_run *run;
     zend_execute_data *execute_data;
     zend_function *current_function;
     long int memory;
@@ -49,29 +49,30 @@ int xdebug_gc_collect_cycles(void)
 
     ret = xdebug_old_gc_collect_cycles();
 
-    array_init(&run);
+    run = emalloc(sizeof(xdebug_gc_run));
+    run->function_name = NULL;
+    run->class_name = NULL;
 
-    add_assoc_long(&run, "collected", GC_G(collected) - collected);
-    add_assoc_long(&run, "duration", xdebug_get_utime() - start);
-    add_assoc_long(&run, "memory_before", memory);
-    add_assoc_long(&run, "memory_after", zend_memory_usage(0));
+    run->collected = GC_G(collected) - collected;
+    run->duration = xdebug_get_utime() - start;
+    run->memory_before = memory;
+    run->memory_after = zend_memory_usage(0);
 
     if (execute_data && execute_data->func) {
         current_function = execute_data->func;
 
         if (current_function->common.function_name) {
-            add_assoc_str_ex(&run, "function", sizeof("function")-1, current_function->common.function_name);
+            run->function_name = zend_string_copy(current_function->common.function_name);
         }
 
         if (current_function->common.scope && current_function->common.scope->name) {
-            add_assoc_str_ex(&run, "class", sizeof("class")-1, current_function->common.scope->name);
+            run->class_name = zend_string_copy(current_function->common.scope->name);
         }
     }
 
-    zend_fetch_debug_backtrace(&stack, 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
-    add_assoc_zval(&run, "stack", &stack);
+    zend_fetch_debug_backtrace(&(run->stack), 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
 
-    zend_hash_next_index_insert(Z_ARRVAL(XG(gc_runs)), &run);
+    xdebug_llist_insert_next(XG(gc_runs), XDEBUG_LLIST_TAIL(XG(gc_runs)), run);
 
     return ret;
 }
@@ -87,67 +88,50 @@ int xdebug_gc_stats_report_enabled()
 
 void xdebug_gc_stats_show_report()
 {
-    zval *run, *collected, *duration, *memory_before, *memory_after, *function, *class;
+    zval *collected, *duration, *memory_before, *memory_after, *function, *class;
+    xdebug_llist_element *le;
+    xdebug_gc_run *run = NULL;
 
     php_printf("## Garbage Collection Report ##\n");
-    php_printf("Found %d garbage collection runs in current script.\n\n", zend_hash_num_elements(Z_ARRVAL(XG(gc_runs))));
+    php_printf("Found %d garbage collection runs in current script.\n\n", xdebug_llist_count(XG(gc_runs)));
 
     php_printf("Collected | Efficiency%% | Duration | Memory Before | Memory After | Reduction%% | Function\n");
     php_printf("----------|-------------|----------|---------------|--------------|------------|---------\n");
 
-    ZEND_HASH_FOREACH_VAL(Z_ARRVAL(XG(gc_runs)), run) {
-        if (!(collected = zend_hash_str_find(Z_ARRVAL_P(run), "collected", sizeof("collected") - 1))) {
-            continue;
-        }
+    for (le = XDEBUG_LLIST_HEAD(XG(gc_runs)); le != NULL; le = XDEBUG_LLIST_NEXT(le)) {
+        run = XDEBUG_LLIST_VALP(le);
 
-        if (!(duration = zend_hash_str_find(Z_ARRVAL_P(run), "duration", sizeof("duration") - 1))) {
-            continue;
-        }
-
-        if (!(memory_before = zend_hash_str_find(Z_ARRVAL_P(run), "memory_before", sizeof("memory_before") - 1))) {
-            continue;
-        }
-
-        if (!(memory_after = zend_hash_str_find(Z_ARRVAL_P(run), "memory_after", sizeof("memory_after") - 1))) {
-            continue;
-        }
-
-        function = zend_hash_str_find(Z_ARRVAL_P(run), "function", sizeof("function") - 1);
-        class = zend_hash_str_find(Z_ARRVAL_P(run), "class", sizeof("class") - 1);
-
-        if (!function) {
+        if (!run->function_name) {
             php_printf(
                 "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | -\n",
-                Z_LVAL_P(collected),
-                (Z_LVAL_P(collected) / 10000.0) * 100.0,
-                Z_LVAL_P(duration) / 1000.0,
-                Z_LVAL_P(memory_before),
-                Z_LVAL_P(memory_after),
-                (1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0
+                run->collected,
+                (run->collected / 10000.0) * 100.0,
+                run->duration / 1000.0,
+                run->memory_before,
+                run->memory_after,
+                (1 - (float)run->memory_after) / (float)run->memory_before * 100.0
             );
-        } else if (!class && function) {
+        } else if (!run->class_name && run->function_name) {
             php_printf(
                 "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s\n",
-                Z_LVAL_P(collected),
-                (Z_LVAL_P(collected) / 10000.0) * 100.0,
-                Z_LVAL_P(duration) / 1000.0,
-                Z_LVAL_P(memory_before),
-                Z_LVAL_P(memory_after),
-                (1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0,
-                Z_STRVAL_P(function)
+                run->collected,
+                (run->collected / 10000.0) * 100.0,
+                run->duration / 1000.0,
+                run->memory_before,
+                run->memory_after,
+                ZSTR_VAL(run->function_name)
             );
-        } else if (class && function) {
+        } else if (run->class_name && run->function_name) {
             php_printf(
                 "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s::%s\n",
-                Z_LVAL_P(collected),
-                (Z_LVAL_P(collected) / 10000.0) * 100.0,
-                Z_LVAL_P(duration) / 1000.0,
-                Z_LVAL_P(memory_before),
-                Z_LVAL_P(memory_after),
-                (1 - (float)Z_LVAL_P(memory_after) / (float)Z_LVAL_P(memory_before)) * 100.0,
-                Z_STRVAL_P(class),
-                Z_STRVAL_P(function)
+                run->collected,
+                (run->collected / 10000.0) * 100.0,
+                run->duration / 1000.0,
+                run->memory_before,
+                run->memory_after,
+                ZSTR_VAL(run->class_name),
+                ZSTR_VAL(run->function_name)
             );
         }
-    } ZEND_HASH_FOREACH_END();
+    }
 }

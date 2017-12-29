@@ -294,7 +294,7 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	zend_bool  in_at;
 
 	/* garbage stats */
-	zval gc_runs;
+	xdebug_llist *gc_runs;
 	zend_bool gc_stats_enabled;
 	zend_bool gc_show_report;
 
