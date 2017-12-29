@@ -1027,6 +1027,7 @@ static void xdebug_llist_gcrun_dtor(void *dummy, void *elem)
         if (s->class_name) {
             zend_string_release(s->class_name);
         }
+        Z_TRY_DELREF(s->stack);
         efree(s);
     }
 }
