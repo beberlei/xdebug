@@ -2474,14 +2474,15 @@ PHP_FUNCTION(xdebug_get_gc_stats)
         add_assoc_long_ex(&run_zv, "memory_after", HASH_KEY_SIZEOF("memory_after"), run->memory_after);
 
         if (run->function_name) {
-            add_assoc_str_ex(&run_zv, "function", HASH_KEY_SIZEOF("function"), run->function_name);
+            add_assoc_str_ex(&run_zv, "function", HASH_KEY_SIZEOF("function"), zend_string_copy(run->function_name));
         }
 
         if (run->class_name) {
-            add_assoc_str_ex(&run_zv, "class", HASH_KEY_SIZEOF("class"), run->class_name);
+            add_assoc_str_ex(&run_zv, "class", HASH_KEY_SIZEOF("class"), zend_string_copy(run->class_name));
         }
 
         add_assoc_zval_ex(&run_zv, "stack", HASH_KEY_SIZEOF("stack"), &(run->stack));
+        Z_TRY_ADDREF(run->stack);
 
         add_next_index_zval(return_value, &run_zv);
     }
