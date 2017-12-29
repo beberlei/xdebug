@@ -23,7 +23,11 @@
 #include <stdio.h>
 #include <fcntl.h>
 #ifndef PHP_WIN32
-# include <sys/poll.h>
+# if HAVE_POLL_H
+#  include <poll.h>
+# elif HAVE_SYS_POLL_H
+#  include <sys/poll.h>
+# endif
 # include <unistd.h>
 # include <sys/socket.h>
 # include <sys/un.h>
@@ -69,20 +73,24 @@ static int xdebug_create_socket_unix(const char *path TSRMLS_DC)
 		return (errno == EACCES) ? SOCK_ACCESS_ERR : SOCK_ERR;
 	}
 
+	/* Prevent the socket from being inherited by exec'd children */
+	if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) < 0) {
+		XDEBUG_LOG_PRINT(XG(remote_log_file), "W: Creating socket for 'unix://%s', fcntl(FD_CLOEXEC): %s.\n", path, strerror(errno));
+	}
+
 	return sockfd;
 }
 #endif
 
-int xdebug_create_socket(const char *hostname, int dport TSRMLS_DC)
+int xdebug_create_socket(const char *hostname, int dport, int timeout TSRMLS_DC)
 {
 	struct addrinfo            hints;
 	struct addrinfo            *remote;
 	struct addrinfo            *ptr;
 	int                        status;
-	int                        sockfd;
+	int                        sockfd = 0;
 	int                        sockerror;
 	char                       sport[10];
-	int                        timeout = 200;
 	int                        actually_connected;
 	struct sockaddr_in6        sa;
 	socklen_t                  size = sizeof(sa);
@@ -151,6 +159,13 @@ int xdebug_create_socket(const char *hostname, int dport TSRMLS_DC)
 		}
 #else
 		fcntl(sockfd, F_SETFL, O_NONBLOCK);
+#endif
+
+#if !WIN32 && !WINNT
+		/* Prevent the socket from being inherited by exec'd children on *nix (not necessary on Win) */
+	        if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) < 0) {
+        	        XDEBUG_LOG_PRINT(XG(remote_log_file), "W: Creating socket for '%s:%d', fcntl(FD_CLOEXEC): %s.\n", hostname, dport, strerror(errno));
+        	}
 #endif
 
 		/* Try to connect to the newly created socket */

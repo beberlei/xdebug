@@ -143,6 +143,7 @@ typedef struct _xdebug_call_entry {
 	char       *function;
 	int         lineno;
 	double      time_taken;
+	long        mem_used;
 } xdebug_call_entry;
 
 typedef struct xdebug_aggregate_entry {
@@ -153,6 +154,7 @@ typedef struct xdebug_aggregate_entry {
 	int         call_count;
 	double      time_own;
 	double      time_inclusive;
+	long        mem_used;
 	HashTable  *call_list;
 } xdebug_aggregate_entry;
 
@@ -160,6 +162,7 @@ typedef struct xdebug_profile {
 	double        time;
 	double        mark;
 	long          memory;
+	long          mem_mark;
 	xdebug_llist *call_list;
 } xdebug_profile;
 
@@ -185,6 +188,10 @@ typedef struct _function_stack_entry {
 	HashTable   *symbol_table;
 	zend_execute_data *execute_data;
 	zval        *This;
+
+	/* filter properties */
+	long         filtered_tracing;
+	long         filtered_code_coverage;
 
 	/* tracing properties */
 	signed long  memory;
@@ -221,7 +228,7 @@ typedef struct
 	void (*function_exit)(void *ctxt, function_stack_entry *fse, int function_nr TSRMLS_DC);
 	void (*return_value)(void *ctxt, function_stack_entry *fse, int function_nr, zval *return_value TSRMLS_DC);
 	void (*generator_return_value)(void *ctxt, function_stack_entry *fse, int function_nr, zend_generator *generator TSRMLS_DC);
-	void (*assignment)(void *ctxt, function_stack_entry *fse, char *full_varname, zval *value, char *op, char *file, int lineno TSRMLS_DC);
+	void (*assignment)(void *ctxt, function_stack_entry *fse, char *full_varname, zval *value, char *right_full_varname, char *op, char *file, int lineno TSRMLS_DC);
 } xdebug_trace_handler_t;
 
 

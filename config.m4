@@ -11,7 +11,7 @@ if test "$PHP_XDEBUG" != "no"; then
   if test "$PHP_XDEBUG_FOUND_VERNUM" -lt "70000"; then
     AC_MSG_ERROR([not supported. Need a PHP version >= 7.0.0 and < 7.3.0 (found $PHP_XDEBUG_FOUND_VERSION)])
   else
-    if test "$PHP_XDEBUG_FOUND_VERNUM" -ge "70300"; then
+    if test "$PHP_XDEBUG_FOUND_VERNUM" -ge "70400"; then
       AC_MSG_ERROR([not supported. Need a PHP version >= 7.0.0 and < 7.3.0 (found $PHP_XDEBUG_FOUND_VERSION)])
     else
       AC_MSG_RESULT([supported ($PHP_XDEBUG_FOUND_VERSION)])
@@ -24,13 +24,13 @@ if test "$PHP_XDEBUG" != "no"; then
   CPPFLAGS="$INCLUDES $CPPFLAGS"
 
   AC_CHECK_FUNCS(gettimeofday)
-  AC_CHECK_HEADERS([netinet/in.h])
+  AC_CHECK_HEADERS([netinet/in.h poll.h sys/poll.h])
 
   PHP_CHECK_LIBRARY(m, cos, [ PHP_ADD_LIBRARY(m,, XDEBUG_SHARED_LIBADD) ])
 
   CPPFLAGS=$old_CPPFLAGS
 
-  PHP_NEW_EXTENSION(xdebug, xdebug.c xdebug_branch_info.c xdebug_code_coverage.c xdebug_com.c xdebug_compat.c xdebug_gc_stats.c xdebug_handler_dbgp.c xdebug_handlers.c xdebug_llist.c xdebug_monitor.c xdebug_hash.c xdebug_private.c xdebug_profiler.c xdebug_set.c xdebug_stack.c xdebug_str.c xdebug_superglobals.c xdebug_tracing.c xdebug_trace_textual.c xdebug_trace_computerized.c xdebug_trace_html.c xdebug_var.c xdebug_xml.c usefulstuff.c, $ext_shared,,,,yes)
+  PHP_NEW_EXTENSION(xdebug, xdebug.c xdebug_branch_info.c xdebug_code_coverage.c xdebug_com.c xdebug_compat.c xdebug_gc_stats.c xdebug_filter.c xdebug_handler_dbgp.c xdebug_handlers.c xdebug_llist.c xdebug_monitor.c xdebug_hash.c xdebug_private.c xdebug_profiler.c xdebug_set.c xdebug_stack.c xdebug_str.c xdebug_superglobals.c xdebug_tracing.c xdebug_trace_textual.c xdebug_trace_computerized.c xdebug_trace_html.c xdebug_var.c xdebug_xml.c usefulstuff.c, $ext_shared,,,,yes)
   PHP_SUBST(XDEBUG_SHARED_LIBADD)
   PHP_ADD_MAKEFILE_FRAGMENT
 fi

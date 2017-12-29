@@ -20,7 +20,7 @@
 #define PHP_XDEBUG_H
 
 #define XDEBUG_NAME       "Xdebug"
-#define XDEBUG_VERSION    "2.6.0-dev"
+#define XDEBUG_VERSION    "2.6.0beta2-dev"
 #define XDEBUG_AUTHOR     "Derick Rethans"
 #define XDEBUG_COPYRIGHT  "Copyright (c) 2002-2017 by Derick Rethans"
 #define XDEBUG_COPYRIGHT_SHORT "Copyright (c) 2002-2017"
@@ -127,6 +127,9 @@ PHP_FUNCTION(xdebug_memory_usage);
 PHP_FUNCTION(xdebug_peak_memory_usage);
 PHP_FUNCTION(xdebug_time_index);
 
+/* filter functions */
+PHP_FUNCTION(xdebug_set_filter);
+
 ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	int           status;
 	int           reason;
@@ -153,11 +156,12 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	function_stack_entry *active_fse;
 	unsigned int  prev_memory;
 	char         *file_link_format;
+	char         *filename_format;
 	zend_bool     force_display_errors;
 	zend_long     force_error_reporting;
 	zend_long     halt_level;
 
-	zend_bool     overload_var_dump;
+	zend_long     overload_var_dump;
 	void        (*orig_var_dump_func)(INTERNAL_FUNCTION_PARAMETERS);
 	void        (*orig_set_time_limit_func)(INTERNAL_FUNCTION_PARAMETERS);
 	void        (*orig_pcntl_exec_func)(INTERNAL_FUNCTION_PARAMETERS);
@@ -195,6 +199,7 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	unsigned int  function_count;
 	int           dead_code_analysis_tracker_offset;
 	long          dead_code_last_start_id;
+	long          code_coverage_filter_offset;
 	char                 *previous_filename;
 	xdebug_coverage_file *previous_file;
 	char                 *previous_mark_filename;
@@ -244,6 +249,7 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	FILE         *remote_log_file;  /* File handler for protocol log */
 	zend_long     remote_cookie_expire_time; /* Expire time for the remote-session cookie */
 	char         *remote_addr_header; /* User configured header to check for forwarded IP address */
+	zend_long     remote_connect_timeout; /* Timeout in MS for remote connections */
 
 	char         *ide_key; /* As Xdebug uses it, from environment, USER, USERNAME or empty */
 	char         *ide_key_setting; /* Set through php.ini and friends */
@@ -295,6 +301,13 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	/* in-execution checking */
 	zend_bool  in_execution;
 	zend_bool  in_var_serialisation;
+
+	/* filters */
+	zend_long     filter_type_tracing;
+	zend_long     filter_type_profiler;
+	zend_long     filter_type_code_coverage;
+	xdebug_llist *filters_tracing;
+	xdebug_llist *filters_code_coverage;
 ZEND_END_MODULE_GLOBALS(xdebug)
 
 #ifdef ZTS

@@ -70,7 +70,7 @@ class DebugClient
 			$ini_options = array();
 		}
 		
-		$options = '';
+		$options = (getenv('TEST_PHP_ARGS') ?: '');
 		$ini_options = array_merge( $default_options, $ini_options );
 		foreach ( $ini_options as $key => $value )
 		{
@@ -104,6 +104,10 @@ class DebugClient
 			echo $read, "\n\n";
 
 			if ( preg_match( '@<stream xmlns="urn.debugger_protocol_v1" xmlns:xdebug@', $read ) )
+			{
+				$end = false;
+			}
+			if ( preg_match( '@<notify xmlns="urn.debugger_protocol_v1" xmlns:xdebug@', $read ) )
 			{
 				$end = false;
 			}

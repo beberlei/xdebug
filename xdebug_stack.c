@@ -20,6 +20,7 @@
 #include "xdebug_code_coverage.h"
 #include "xdebug_com.h"
 #include "xdebug_compat.h"
+#include "xdebug_filter.h"
 #include "xdebug_monitor.h"
 #include "xdebug_profiler.h"
 #include "xdebug_stack.h"
@@ -67,12 +68,12 @@ static char* html_formats[13] = {
 	"<tr><th align='left' bgcolor='#e9b96e' colspan='5'>Call Stack</th></tr>\n<tr><th align='center' bgcolor='#eeeeec'>#</th><th align='left' bgcolor='#eeeeec'>Time</th><th align='left' bgcolor='#eeeeec'>Memory</th><th align='left' bgcolor='#eeeeec'>Function</th><th align='left' bgcolor='#eeeeec'>Location</th></tr>\n",
 	"<tr><td bgcolor='#eeeeec' align='center'>%d</td><td bgcolor='#eeeeec' align='center'>%.4F</td><td bgcolor='#eeeeec' align='right'>%ld</td><td bgcolor='#eeeeec'>%s( ",
 	"<font color='#00bb00'>'%s'</font>",
-	" )</td><td title='%s' bgcolor='#eeeeec'>...%s<b>:</b>%d</td></tr>\n",
+	" )</td><td title='%s' bgcolor='#eeeeec'>%s<b>:</b>%d</td></tr>\n",
 	"<tr><th align='left' colspan='5' bgcolor='#e9b96e'>Variables in local scope (#%d)</th></tr>\n",
 	"</table></font>\n",
 	"<tr><td colspan='2' align='right' bgcolor='#eeeeec' valign='top'><pre>$%s&nbsp;=</pre></td><td colspan='3' bgcolor='#eeeeec'>%s</td></tr>\n",
 	"<tr><td colspan='2' align='right' bgcolor='#eeeeec' valign='top'><pre>$%s&nbsp;=</pre></td><td colspan='3' bgcolor='#eeeeec' valign='top'><i>Undefined</i></td></tr>\n",
-	" )</td><td title='%s' bgcolor='#eeeeec'><a style='color: black' href='%s'>...%s<b>:</b>%d</a></td></tr>\n",
+	" )</td><td title='%s' bgcolor='#eeeeec'><a style='color: black' href='%s'>%s<b>:</b>%d</a></td></tr>\n",
 	"<tr><th align='left' bgcolor='#f57900' colspan=\"5\"><span style='background-color: #cc0000; color: #fce94f; font-size: x-large;'>( ! )</span> %s: %s in <a style='color: black' href='%s'>%s</a> on line <i>%d</i></th></tr>\n",
 	"<tr><th align='left' bgcolor='#f57900' colspan=\"5\"><span style='background-color: #cc0000; color: #fce94f; font-size: x-large;'>( ! )</span> SCREAM: Error suppression ignored for</th></tr>\n"
 };
@@ -93,7 +94,7 @@ static void dump_used_var_with_contents(void *htmlq, xdebug_hash_element* he, vo
 {
 	int        html = *(int *)htmlq;
 	int        len;
-	zval      *zvar;
+	zval       zvar;
 	char      *contents;
 	char      *name = (char*) he->ptr;
 	HashTable *tmp_ht;
@@ -129,20 +130,21 @@ static void dump_used_var_with_contents(void *htmlq, xdebug_hash_element* he, vo
 			XG(active_symbol_table) = ex->symbol_table;
 		}
 	}
-	zvar = xdebug_get_php_symbol(name TSRMLS_CC);
+
+	xdebug_get_php_symbol(&zvar, name TSRMLS_CC);
 	XG(active_symbol_table) = tmp_ht;
 
 	formats = select_formats(PG(html_errors) TSRMLS_CC);
 
-	if (!zvar) {
+	if (Z_TYPE(zvar) == IS_UNDEF) {
 		xdebug_str_add(str, xdebug_sprintf(formats[9], name), 1);
 		return;
 	}
 
 	if (html) {
-		contents = xdebug_get_zval_value_fancy(NULL, zvar, &len, 0, NULL TSRMLS_CC);
+		contents = xdebug_get_zval_value_fancy(NULL, &zvar, &len, 0, NULL TSRMLS_CC);
 	} else {
-		contents = xdebug_get_zval_value(zvar, 0, NULL);
+		contents = xdebug_get_zval_value(&zvar, 0, NULL);
 	}
 
 	if (contents) {
@@ -152,6 +154,7 @@ static void dump_used_var_with_contents(void *htmlq, xdebug_hash_element* he, vo
 	}
 
 	xdfree(contents);
+	zval_ptr_dtor_nogc(&zvar);
 }
 
 void xdebug_log_stack(const char *error_type_str, char *buffer, const char *error_filename, const int error_lineno TSRMLS_DC)
@@ -380,6 +383,9 @@ void xdebug_append_printable_stack(xdebug_str *str, int html TSRMLS_DC)
 			int variadic_opened = 0;
 
 			i = XDEBUG_LLIST_VALP(le);
+			if (xdebug_is_stack_frame_filtered(XDEBUG_FILTER_TRACING, i)) {
+				continue;
+			}
 			tmp_name = xdebug_show_fname(i->function, html, 0 TSRMLS_CC);
 			if (html) {
 				xdebug_str_add(str, xdebug_sprintf(formats[3], i->level, i->time - XG(start_time), i->memory, tmp_name), 1);
@@ -437,18 +443,20 @@ void xdebug_append_printable_stack(xdebug_str *str, int html TSRMLS_DC)
 			}
 
 			if (html) {
+				char *formatted_filename;
+				xdebug_format_filename(&formatted_filename, XG(filename_format), "...%s%n", i->filename);
+
 				if (strlen(XG(file_link_format)) > 0) {
-					char *just_filename = strrchr(i->filename, DEFAULT_SLASH);
 					char *file_link;
 
 					xdebug_format_file_link(&file_link, i->filename, i->lineno TSRMLS_CC);
-					xdebug_str_add(str, xdebug_sprintf(formats[10], i->filename, file_link, just_filename, i->lineno), 1);
+					xdebug_str_add(str, xdebug_sprintf(formats[10], i->filename, file_link, formatted_filename, i->lineno), 1);
 					xdfree(file_link);
 				} else {
-					char *just_filename = strrchr(i->filename, DEFAULT_SLASH);
-
-					xdebug_str_add(str, xdebug_sprintf(formats[5], i->filename, just_filename, i->lineno), 1);
+					xdebug_str_add(str, xdebug_sprintf(formats[5], i->filename, formatted_filename, i->lineno), 1);
 				}
+
+				xdfree(formatted_filename);
 			} else {
 				xdebug_str_add(str, xdebug_sprintf(formats[5], i->filename, i->lineno), 1);
 			}
@@ -553,14 +561,14 @@ void xdebug_init_debugger(TSRMLS_D)
 				*cp = '\0';
 			}
 			XDEBUG_LOG_PRINT(XG(remote_log_file), "I: Remote address found, connecting to %s:%ld.\n", Z_STRVAL_P(remote_addr), (long int) XG(remote_port));
-			XG(context).socket = xdebug_create_socket(Z_STRVAL_P(remote_addr), XG(remote_port) TSRMLS_CC);
+			XG(context).socket = xdebug_create_socket(Z_STRVAL_P(remote_addr), XG(remote_port), XG(remote_connect_timeout) TSRMLS_CC);
 		} else {
 			XDEBUG_LOG_PRINT(XG(remote_log_file), "W: Remote address not found, connecting to configured address/port: %s:%ld. :-|\n", XG(remote_host), (long int) XG(remote_port));
-			XG(context).socket = xdebug_create_socket(XG(remote_host), XG(remote_port) TSRMLS_CC);
+			XG(context).socket = xdebug_create_socket(XG(remote_host), XG(remote_port), XG(remote_connect_timeout) TSRMLS_CC);
 		}
 	} else {
 		XDEBUG_LOG_PRINT(XG(remote_log_file), "I: Connecting to configured address/port: %s:%ld.\n", XG(remote_host), (long int) XG(remote_port));
-		XG(context).socket = xdebug_create_socket(XG(remote_host), XG(remote_port) TSRMLS_CC);
+		XG(context).socket = xdebug_create_socket(XG(remote_host), XG(remote_port), XG(remote_connect_timeout) TSRMLS_CC);
 	}
 	if (XG(context).socket >= 0) {
 		XDEBUG_LOG_PRINT(XG(remote_log_file), "I: Connected to client. :-)\n");
@@ -589,7 +597,7 @@ void xdebug_init_debugger(TSRMLS_D)
 	} else if (XG(context).socket == -1) {
 		XDEBUG_LOG_PRINT(XG(remote_log_file), "E: Could not connect to client. :-(\n");
 	} else if (XG(context).socket == -2) {
-		XDEBUG_LOG_PRINT(XG(remote_log_file), "E: Time-out connecting to client. :-(\n");
+		XDEBUG_LOG_PRINT(XG(remote_log_file), "E: Time-out connecting to client (Waited: " ZEND_LONG_FMT " ms). :-(\n", XG(remote_connect_timeout));
 	} else if (XG(context).socket == -3) {
 		XDEBUG_LOG_PRINT(XG(remote_log_file), "E: No permission connecting to client. This could be SELinux related. :-(\n");
 	}
@@ -615,6 +623,58 @@ static void php_output_error(const char *error TSRMLS_DC)
 	}
 #endif
 	php_printf("%s", error);
+}
+
+char *xdebug_strip_php_stack_trace(char *buffer)
+{
+	char *tmp_buf, *p;
+
+	if (strncmp(buffer, "Uncaught ", 9) == 0) {
+		/* find first new line */
+		p = strchr(buffer, '\n');
+		if (!p) {
+			p = buffer + strlen(buffer);
+		} else {
+			/* find the last " in ", which isn't great and might not work... but in most cases it will */
+			p = xdebug_strrstr(buffer, " in ");
+			if (!p) {
+				p = buffer + strlen(buffer);
+			}
+		}
+		/* Create new buffer */
+		tmp_buf = calloc(p - buffer + 1, 1);
+		strncpy(tmp_buf, buffer, p - buffer);
+
+		return tmp_buf;
+	}
+	return NULL;
+}
+
+char *xdebug_handle_stack_trace(int type, char *error_type_str, const char *error_filename, const uint error_lineno, char *buffer TSRMLS_DC)
+{
+	char *printable_stack;
+	char *tmp_buf;
+
+	/* We need to see if we have an uncaught exception fatal error now */
+	if (type == E_ERROR && ((tmp_buf = xdebug_strip_php_stack_trace(buffer)) != NULL)) {
+		xdebug_str str = XDEBUG_STR_INITIALIZER;
+
+		/* Append error */
+		xdebug_append_error_head(&str, PG(html_errors), "uncaught-exception" TSRMLS_CC);
+		xdebug_append_error_description(&str, PG(html_errors), error_type_str, tmp_buf, error_filename, error_lineno TSRMLS_CC);
+		xdebug_append_printable_stack(&str, PG(html_errors) TSRMLS_CC);
+		if (XG(last_exception_trace)) {
+			xdebug_str_add(&str, XG(last_exception_trace), 0);
+		}
+		xdebug_append_error_footer(&str, PG(html_errors) TSRMLS_CC);
+
+		free(tmp_buf);
+		printable_stack = str.d;
+	} else {
+		printable_stack = get_printable_stack(PG(html_errors), type, buffer, error_filename, error_lineno, 1 TSRMLS_CC);
+	}
+
+	return printable_stack;
 }
 
 /* Error callback for formatting stack traces */
@@ -684,52 +744,41 @@ void xdebug_error_cb(int type, const char *error_filename, const uint error_line
 			}
 #endif
 			xdebug_log_stack(error_type_str, buffer, error_filename, error_lineno TSRMLS_CC);
+			if (XG(dump_globals) && !(XG(dump_once) && XG(dumped))) {
+				char *printable_stack = xdebug_get_printable_superglobals(0 TSRMLS_CC);
+
+				if (printable_stack) {
+					int pc;
+
+					xdebug_arg *parts = (xdebug_arg*) xdmalloc(sizeof(xdebug_arg));
+
+					xdebug_arg_init(parts);
+					xdebug_explode("\n", printable_stack, parts, -1);
+
+					for (pc = 0; pc < parts->c; pc++) {
+						char *tmp_line = xdebug_sprintf("PHP %s", parts->args[pc]);
+						php_log_err(tmp_line);
+						xdfree(tmp_line);
+					}
+
+					xdebug_arg_dtor(parts);
+					xdfree(printable_stack);
+					php_log_err("PHP ");
+				}
+			}
 		}
 
 		/* Display errors */
 		if ((PG(display_errors) || XG(force_display_errors)) && !PG(during_request_startup)) {
 			char *printable_stack;
 
-			/* We need to see if we have an uncaught exception fatal error now */
-			if (type == E_ERROR && strncmp(buffer, "Uncaught ", 9) == 0) {
-				xdebug_str str = XDEBUG_STR_INITIALIZER;
-				char *tmp_buf, *p;
+			printable_stack = xdebug_handle_stack_trace(type, error_type_str, error_filename, error_lineno, buffer TSRMLS_CC);
 
-				/* find first new line */
-				p = strchr(buffer, '\n');
-				if (!p) {
-					p = buffer + strlen(buffer);
-				} else {
-					/* find the last " in ", which isn't great and might not work... but in most cases it will */
-					p = xdebug_strrstr(buffer, " in ");
-					if (!p) {
-						p = buffer + strlen(buffer);
-					}
-				}
-				/* Create new buffer */
-				tmp_buf = calloc(p - buffer + 1, 1);
-				strncpy(tmp_buf, buffer, p - buffer );
-
-				/* Append error */
-				xdebug_append_error_head(&str, PG(html_errors), "uncaught-exception" TSRMLS_CC);
-				xdebug_append_error_description(&str, PG(html_errors), error_type_str, tmp_buf, error_filename, error_lineno TSRMLS_CC);
-				xdebug_append_printable_stack(&str, PG(html_errors) TSRMLS_CC);
-				if (XG(last_exception_trace)) {
-					xdebug_str_add(&str, XG(last_exception_trace), 0);
-				}
-				xdebug_append_error_footer(&str, PG(html_errors) TSRMLS_CC);
-				php_output_error(str.d TSRMLS_CC);
-
-				xdfree(str.d);
-				free(tmp_buf);
+			if (XG(do_collect_errors) && (type != E_ERROR) && (type != E_COMPILE_ERROR) && (type != E_USER_ERROR)) {
+				xdebug_llist_insert_next(XG(collected_errors), XDEBUG_LLIST_TAIL(XG(collected_errors)), printable_stack);
 			} else {
-				printable_stack = get_printable_stack(PG(html_errors), type, buffer, error_filename, error_lineno, 1 TSRMLS_CC);
-				if (XG(do_collect_errors) && (type != E_ERROR) && (type != E_COMPILE_ERROR) && (type != E_USER_ERROR)) {
-					xdebug_llist_insert_next(XG(collected_errors), XDEBUG_LLIST_TAIL(XG(collected_errors)), printable_stack);
-				} else {
-					php_output_error(printable_stack TSRMLS_CC);
-					xdfree(printable_stack);
-				}
+				php_output_error(printable_stack TSRMLS_CC);
+				xdfree(printable_stack);
 			}
 		} else if (XG(do_collect_errors)) {
 			char *printable_stack;
@@ -741,8 +790,15 @@ void xdebug_error_cb(int type, const char *error_filename, const uint error_line
 	/* Start JIT if requested and not yet enabled */
 	xdebug_do_jit(TSRMLS_C);
 
-	/* Check for the pseudo exceptions to allow breakpoints on PHP error statuses */
 	if (XG(remote_enabled) && XG(breakpoints_allowed)) {
+		/* Send notification with warning/notice/error information */
+		if (XG(context).send_notifications && !XG(context).inhibit_notifications) {
+			if (!XG(context).handler->remote_notification(&(XG(context)), error_filename, error_lineno, type, error_type_str, buffer)) {
+				XG(remote_enabled) = 0;
+			}
+		}
+
+		/* Check for the pseudo exceptions to allow breakpoints on PHP error statuses */
 		if (
 			xdebug_hash_find(XG(context).exception_breakpoints, error_type_str, strlen(error_type_str), (void *) &extra_brk_info) ||
 			xdebug_hash_find(XG(context).exception_breakpoints, "*", 1, (void *) &extra_brk_info)
@@ -800,7 +856,11 @@ void xdebug_error_cb(int type, const char *error_filename, const uint error_line
 			break;
 	}
 
+#if PHP_VERSION_ID >= 70200
+	if (PG(track_errors) && EG(active)) {
+#else
 	if (PG(track_errors) && EG(valid_symbol_table)) {
+#endif
 		zval tmp;
 		ZVAL_STRINGL(&tmp, buffer, buffer_len);
 
@@ -1119,6 +1179,8 @@ function_stack_entry *xdebug_add_stack_frame(zend_execute_data *zdata, zend_op_a
 	tmp->symbol_table  = NULL;
 	tmp->execute_data  = NULL;
 	tmp->is_variadic   = 0;
+	tmp->filtered_tracing       = 0;
+	tmp->filtered_code_coverage = 0;
 
 	XG(function_count)++;
 	tmp->function_nr = XG(function_count);
@@ -1255,8 +1317,14 @@ function_stack_entry *xdebug_add_stack_frame(zend_execute_data *zdata, zend_op_a
 		}
 	}
 
+	/* Now we have location and name, we can run the filter */
+	xdebug_filter_run_tracing(tmp);
+
+	/* Count code coverage line for call */
 	if (XG(do_code_coverage)) {
-		xdebug_count_line(tmp->filename, tmp->lineno, 0, 0 TSRMLS_CC);
+		if (!op_array->reserved[XG(code_coverage_filter_offset)] && XG(code_coverage_branch_check)) {
+			xdebug_count_line(tmp->filename, tmp->lineno, 0, 0 TSRMLS_CC);
+		}
 	}
 
 	if (XG(do_monitor_functions)) {

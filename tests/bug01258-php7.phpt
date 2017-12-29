@@ -1,5 +1,7 @@
 --TEST--
-Test for bug #1258: ensure case statements are covered
+Test for bug #1258: ensure case statements are covered (< PHP 7.2)
+--SKIPIF--
+<?php if (!version_compare(phpversion(), "7.2", '<')) echo "skip < PHP 7.2 needed\n"; ?>
 --FILE--
 <?php
 $foo = ['bar', 'baz', 'qux', 'quux'];

@@ -42,6 +42,7 @@
 #include "xdebug_hash.h"
 #include "xdebug_llist.h"
 #include "xdebug_mm.h"
+#include "xdebug_stack.h"
 #include "xdebug_var.h"
 #include "xdebug_xml.h"
 
@@ -274,11 +275,17 @@ static void send_message(xdebug_con *context, xdebug_xml_node *message TSRMLS_DC
 
 static xdebug_xml_node* get_symbol(char* name, xdebug_var_export_options *options TSRMLS_DC)
 {
-	zval                *retval;
+	zval                   retval;
+	xdebug_xml_node       *tmp_node;
 
-	retval = xdebug_get_php_symbol(name TSRMLS_CC);
-	if (retval && Z_TYPE_P(retval) != IS_UNDEF) {
-		return xdebug_get_zval_value_xml_node(name, retval, options TSRMLS_CC);
+	xdebug_get_php_symbol(&retval, name TSRMLS_CC);
+	if (Z_TYPE(retval) != IS_UNDEF) {
+		if (strcmp(name, "this") == 0 && Z_TYPE(retval) == IS_NULL) {
+			return NULL;
+		}
+		tmp_node = xdebug_get_zval_value_xml_node(name, &retval, options TSRMLS_CC);
+		zval_ptr_dtor_nogc(&retval);
+		return tmp_node;
 	}
 
 	return NULL;
@@ -286,11 +293,14 @@ static xdebug_xml_node* get_symbol(char* name, xdebug_var_export_options *option
 
 static int get_symbol_contents(char* name, xdebug_xml_node *node, xdebug_var_export_options *options TSRMLS_DC)
 {
-	zval                *retval;
+	zval retval;
 
-	retval = xdebug_get_php_symbol(name TSRMLS_CC);
-	if (retval) {
-		xdebug_var_export_xml_node(&retval, name, node, options, 1 TSRMLS_CC);
+	xdebug_get_php_symbol(&retval, name TSRMLS_CC);
+	if (Z_TYPE(retval) != IS_UNDEF) {
+		// TODO WTF???
+		zval *retval_ptr = &retval;
+		xdebug_var_export_xml_node(&retval_ptr, name, node, options, 1 TSRMLS_CC);
+		zval_ptr_dtor_nogc(&retval);
 		return 1;
 	}
 
@@ -1204,6 +1214,11 @@ DBGP_FUNC(feature_get)
 			xdebug_xml_add_attribute(*retval, "supported", "1");
 		XDEBUG_STR_CASE_END
 
+		XDEBUG_STR_CASE("notify_ok")
+			xdebug_xml_add_text(*retval, xdebug_sprintf("%ld", XG(context).send_notifications));
+			xdebug_xml_add_attribute(*retval, "supported", "1");
+		XDEBUG_STR_CASE_END
+
 		XDEBUG_STR_CASE_DEFAULT
 			xdebug_xml_add_text(*retval, xdstrdup(lookup_cmd(CMD_OPTION('n')) ? "1" : "0"));
 			xdebug_xml_add_attribute(*retval, "supported", lookup_cmd(CMD_OPTION('n')) ? "1" : "0");
@@ -1261,6 +1276,10 @@ DBGP_FUNC(feature_set)
 
 		XDEBUG_STR_CASE("extended_properties")
 			options->extended_properties = strtol(CMD_OPTION('v'), NULL, 10);
+		XDEBUG_STR_CASE_END
+
+		XDEBUG_STR_CASE("notify_ok")
+			XG(context).send_notifications = strtol(CMD_OPTION('v'), NULL, 10);
 		XDEBUG_STR_CASE_END
 
 		XDEBUG_STR_CASE_DEFAULT
@@ -1385,7 +1404,13 @@ DBGP_FUNC(property_get)
 			RETURN_RESULT(XG(status), XG(reason), XDEBUG_ERROR_PROPERTY_NON_EXISTENT);
 		}
 	} else {
-		if (add_variable_node(*retval, CMD_OPTION('n'), 1, 0, 0, options TSRMLS_CC) == FAILURE) {
+		int add_var_retval;
+
+		XG(context).inhibit_notifications = 1;
+		add_var_retval = add_variable_node(*retval, CMD_OPTION('n'), 1, 0, 0, options TSRMLS_CC);
+		XG(context).inhibit_notifications = 0;
+
+		if (add_var_retval) {
 			options->max_data = old_max_data;
 			RETURN_RESULT(XG(status), XG(reason), XDEBUG_ERROR_PROPERTY_NON_EXISTENT);
 		}
@@ -1409,7 +1434,6 @@ DBGP_FUNC(property_set)
 	zval                       ret_zval;
 	function_stack_entry      *fse;
 	xdebug_var_export_options *options = (xdebug_var_export_options*) context->options;
-	zval                      *symbol;
 	zend_execute_data         *original_execute_data;
 	XDEBUG_STR_SWITCH_DECL;
 
@@ -1458,28 +1482,30 @@ DBGP_FUNC(property_set)
 	new_value = xdebug_base64_decode((unsigned char*) data, strlen(data), &new_length);
 
 	if (CMD_OPTION('t')) {
-		symbol = xdebug_get_php_symbol(CMD_OPTION('n') TSRMLS_CC);
+		zval symbol;
+		xdebug_get_php_symbol(&symbol, CMD_OPTION('n') TSRMLS_CC);
 
 		/* Handle result */
-		if (!symbol) {
+		if (Z_TYPE(symbol) == IS_UNDEF) {
 			efree(new_value);
 			RETURN_RESULT(XG(status), XG(reason), XDEBUG_ERROR_PROPERTY_NON_EXISTENT);
 		} else {
-			zval_dtor(symbol);
-			ZVAL_STRINGL(symbol, (char*) new_value, new_length);
+			// TODO Doesn't make sense anymore in this form
+			zval_ptr_dtor_nogc(&symbol);
+			ZVAL_STRINGL(&symbol, (char*) new_value, new_length);
 			xdebug_xml_add_attribute(*retval, "success", "1");
 
 			XDEBUG_STR_SWITCH(CMD_OPTION('t')) {
 				XDEBUG_STR_CASE("bool")
-					convert_to_boolean(symbol);
+					convert_to_boolean(&symbol);
 				XDEBUG_STR_CASE_END
 
 				XDEBUG_STR_CASE("int")
-					convert_to_long(symbol);
+					convert_to_long(&symbol);
 				XDEBUG_STR_CASE_END
 
 				XDEBUG_STR_CASE("float")
-					convert_to_double(symbol);
+					convert_to_double(&symbol);
 				XDEBUG_STR_CASE_END
 
 				XDEBUG_STR_CASE("string")
@@ -2240,6 +2266,8 @@ int xdebug_dbgp_init(xdebug_con *context, int mode)
 	context->line_breakpoints = xdebug_llist_alloc((xdebug_llist_dtor) xdebug_llist_brk_dtor);
 	context->eval_id_lookup = xdebug_hash_alloc(64, (xdebug_hash_dtor) xdebug_hash_eval_info_dtor);
 	context->eval_id_sequence = 0;
+	context->send_notifications = 0;
+	context->inhibit_notifications = 0;
 
 	xdebug_dbgp_cmdloop(context, 1 TSRMLS_CC);
 
@@ -2427,6 +2455,49 @@ int xdebug_dbgp_stream_output(const char *string, unsigned int length TSRMLS_DC)
 		return 0;
 	}
 	return -1;
+}
+
+int xdebug_dbgp_notification(xdebug_con *context, const char *file, long lineno, int type, char *type_string, char *message)
+{
+	xdebug_xml_node *response, *error_container;
+	TSRMLS_FETCH();
+
+	response = xdebug_xml_node_init("notify");
+	xdebug_xml_add_attribute(response, "xmlns", "urn:debugger_protocol_v1");
+	xdebug_xml_add_attribute(response, "xmlns:xdebug", "http://xdebug.org/dbgp/xdebug");
+	xdebug_xml_add_attribute(response, "name", "error");
+
+	error_container = xdebug_xml_node_init("xdebug:message");
+	if (file) {
+		char *tmp_filename = (char*) file;
+		int tmp_lineno = lineno;
+		if (check_evaled_code(NULL, &tmp_filename, &tmp_lineno, 0 TSRMLS_CC)) {
+			xdebug_xml_add_attribute_ex(error_container, "filename", xdstrdup(tmp_filename), 1, 1);
+		} else {
+			xdebug_xml_add_attribute_ex(error_container, "filename", xdebug_path_to_url(file TSRMLS_CC), 0, 1);
+		}
+	}
+	if (lineno) {
+		xdebug_xml_add_attribute_ex(error_container, "lineno", xdebug_sprintf("%lu", lineno), 0, 1);
+	}
+	if (type_string) {
+		xdebug_xml_add_attribute_ex(error_container, "type_string", xdstrdup(type_string), 0, 1);
+	}
+	if (message) {
+		char *tmp_buf;
+
+		if (type == E_ERROR && ((tmp_buf = xdebug_strip_php_stack_trace(message)) != NULL)) {
+			xdebug_xml_add_text(error_container, tmp_buf);
+		} else {
+			xdebug_xml_add_text(error_container, xdstrdup(message));
+		}
+	}
+	xdebug_xml_add_child(response, error_container);
+
+	send_message(context, response TSRMLS_CC);
+	xdebug_xml_node_dtor(response);
+
+	return 1;
 }
 
 static char *create_eval_key_file(char *filename, int lineno)

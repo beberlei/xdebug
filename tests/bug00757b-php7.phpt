@@ -1,5 +1,9 @@
 --TEST--
-Test for bug #757: XDEBUG_CC_UNUSED does not work with code outside a function.
+Test for bug #757: XDEBUG_CC_UNUSED does not work with code outside a function. (< PHP 7.2 || !opcache)
+--SKIPIF--
+<?php
+if ( ( version_compare(phpversion(), "7.2", '>=') && extension_loaded('zend opcache'))) { echo "skip < PHP 7.2 || !opcache loaded needed\n"; };
+?>
 --INI--
 xdebug.default_enable=1
 xdebug.overload_var_dump=0
