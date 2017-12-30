@@ -9,6 +9,9 @@ echo file_get_contents(xdebug_get_gcstats_filename());
 unlink(xdebug_get_gcstats_filename());
 ?>
 --EXPECTF--
-## Garbage Collection Report ##
+Garbage Collection Report
+version: 1
+creator: xdebug %d.%s (PHP %s)
+
 Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
-----------|-------------|----------|---------------|--------------|------------|---------
+----------+-------------+----------+---------------+--------------+------------+---------

@@ -122,10 +122,11 @@ int xdebug_gc_stats_init(char *fname, char *script_name)
 		return FAILURE;
 	}
 
-	fprintf(XG(gc_stats_file), "## Garbage Collection Report ##\n");
+	fprintf(XG(gc_stats_file), "Garbage Collection Report\n");
+	fprintf(XG(gc_stats_file), "version: 1\ncreator: xdebug %s (PHP %s)\n\n", XDEBUG_VERSION, PHP_VERSION);
 
 	fprintf(XG(gc_stats_file), "Collected | Efficiency%% | Duration | Memory Before | Memory After | Reduction%% | Function\n");
-	fprintf(XG(gc_stats_file), "----------|-------------|----------|---------------|--------------|------------|---------\n");
+	fprintf(XG(gc_stats_file), "----------+-------------+----------+---------------+--------------+------------+---------\n");
 
 	fflush(XG(gc_stats_file));
 

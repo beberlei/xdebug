@@ -35,8 +35,11 @@ unlink(xdebug_get_gcstats_filename());
 ?>
 --EXPECTF--
 string(1) "0"
-## Garbage Collection Report ##
+Garbage Collection Report
+version: 1
+creator: xdebug %d.%s (PHP %s)
+
 Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
-----------|-------------|----------|---------------|--------------|------------|---------
+----------+-------------+----------+---------------+--------------+------------+---------
       200 |      2.00 % |  %s ms |        %d |       %d |   %s % | gc_collect_cycles
 
