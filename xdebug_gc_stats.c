@@ -50,7 +50,7 @@ int xdebug_gc_collect_cycles(void)
 
 	ret = xdebug_old_gc_collect_cycles();
 
-	run = emalloc(sizeof(xdebug_gc_run));
+	run = xdmalloc(sizeof(xdebug_gc_run));
 	run->function_name = NULL;
 	run->class_name = NULL;
 
@@ -90,26 +90,30 @@ void xdebug_gc_stats_run_free(xdebug_gc_run *run)
 			zend_string_release(run->class_name);
 		}
 		zval_ptr_dtor(&(run->stack));
-		efree(run);
+		xdfree(run);
 	}
 }
 
-int xdebug_gc_stats_init(char *script_name TSRMLS_DC)
+int xdebug_gc_stats_init(char* fname, char *script_name)
 {
-	char *filename = NULL, *fname = NULL;
+	char *filename = NULL;
 
-	if (!strlen(XG(gc_stats_output_name)) ||
-		xdebug_format_output_filename(&fname, XG(gc_stats_output_name), script_name) <= 0)
-	{
-		return FAILURE;
-	}
-
-	if (IS_SLASH(XG(gc_stats_output_dir)[strlen(XG(gc_stats_output_dir)) - 1])) {
-		filename = xdebug_sprintf("%s%s", XG(gc_stats_output_dir), fname);
+	if (fname && strlen(fname)) {
+		filename = xdstrdup(fname);
 	} else {
-		filename = xdebug_sprintf("%s%c%s", XG(gc_stats_output_dir), DEFAULT_SLASH, fname);
+		if (!strlen(XG(gc_stats_output_name)) ||
+			xdebug_format_output_filename(&fname, XG(gc_stats_output_name), script_name) <= 0)
+		{
+			return FAILURE;
+		}
+
+		if (IS_SLASH(XG(gc_stats_output_dir)[strlen(XG(gc_stats_output_dir)) - 1])) {
+			filename = xdebug_sprintf("%s%s", XG(gc_stats_output_dir), fname);
+		} else {
+			filename = xdebug_sprintf("%s%c%s", XG(gc_stats_output_dir), DEFAULT_SLASH, fname);
+		}
+		xdfree(fname);
 	}
-	xdfree(fname);
 
 	XG(gc_stats_file) = xdebug_fopen(filename, "w", NULL, &XG(gc_stats_filename));
 	xdfree(filename);

@@ -1790,7 +1790,7 @@ void xdebug_execute_ex(zend_execute_data *execute_data TSRMLS_DC)
 		}
 
 		if (!XG(gc_stats_enabled) && XG(gc_stats_enable)) {
-			if (xdebug_gc_stats_init(STR_NAME_VAL(op_array->filename)) == SUCCESS) {
+			if (xdebug_gc_stats_init(NULL, STR_NAME_VAL(op_array->filename)) == SUCCESS) {
 				XG(gc_stats_enabled) = 1;
 			}
 		}
@@ -2425,6 +2425,45 @@ PHP_FUNCTION(xdebug_clear_aggr_profiling_data)
 	RETURN_TRUE;
 }
 
+PHP_FUNCTION(xdebug_get_gcstats_filename)
+{
+	if (XG(gc_stats_filename)) {
+		RETURN_STRING(XG(gc_stats_filename));
+	} else {
+		RETURN_FALSE;
+	}
+}
+
+PHP_FUNCTION(xdebug_start_gcstats)
+{
+	char *fname = NULL;
+	size_t fname_len = 0;
+	char *gcstats_fname;
+	function_stack_entry *fse;
+
+	if (XG(gc_stats_enabled) == 0) {
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &fname, &fname_len) == FAILURE) {
+			return;
+		}
+
+		fse = xdebug_get_stack_frame(0 TSRMLS_CC);
+
+		if (xdebug_gc_stats_init(fname, fse->filename) == SUCCESS) {
+			XG(gc_stats_enabled) = 1;
+			RETVAL_STRING(XG(gc_stats_filename));
+			return;
+		} else {
+			php_error(E_NOTICE, "Garbage Collection statistics could not be started");
+		}
+
+		XG(gc_stats_enabled) = 0;
+		RETURN_FALSE;
+	} else {
+		php_error(E_NOTICE, "Garbage Collection statistics are already being collected.");
+		RETURN_FALSE;
+	}
+}
+
 PHP_FUNCTION(xdebug_memory_usage)
 {
 	RETURN_LONG(zend_memory_usage(0 TSRMLS_CC));
@@ -2438,15 +2477,6 @@ PHP_FUNCTION(xdebug_peak_memory_usage)
 PHP_FUNCTION(xdebug_time_index)
 {
 	RETURN_DOUBLE(xdebug_get_utime() - XG(start_time));
-}
-
-PHP_FUNCTION(xdebug_get_gcstats_filename)
-{
-    if (XG(gc_stats_filename)) {
-        RETURN_STRING(XG(gc_stats_filename));
-    } else {
-        RETURN_FALSE;
-    }
 }
 
 #if PHP_VERSION_ID >= 70100
