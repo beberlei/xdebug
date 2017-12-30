@@ -34,7 +34,6 @@ int xdebug_gc_collect_cycles(void)
 	uint32_t collected;
 	xdebug_gc_run *run;
 	zend_execute_data *execute_data;
-	zend_op_array *op_array;
 	zend_function *current_function;
 	long int memory;
 	double start;
