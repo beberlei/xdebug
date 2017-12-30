@@ -19,12 +19,6 @@
 #ifndef __XDEBUG_GC_STATS_H__
 #define __XDEBUG_GC_STATS_H__
 
-int (*xdebug_old_gc_collect_cycles)(void);
-int xdebug_gc_collect_cycles(void);
-
-int xdebug_gc_stats_report_enabled();
-void xdebug_gc_stats_show_report();
-
 typedef struct _xdebug_gc_run {
     zend_long collected;
     zend_long duration;
@@ -34,5 +28,13 @@ typedef struct _xdebug_gc_run {
     zend_string *class_name;
     zval stack;
 } xdebug_gc_run;
+
+int (*xdebug_old_gc_collect_cycles)(void);
+int xdebug_gc_collect_cycles(void);
+int xdebug_gc_stats_init(char *script_name TSRMLS_DC);
+void xdebug_gc_stats_print_run(xdebug_gc_run *run);
+void xdebug_gc_stats_run_free(xdebug_gc_run *run);
+
+void xdebug_gc_stats_show_report();
 
 #endif

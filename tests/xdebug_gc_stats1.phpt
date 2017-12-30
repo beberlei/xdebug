@@ -2,15 +2,12 @@
 GC Stats: No memleak, return empty runs
 --INI--
 zend.enable_gc=1
+xdebug.gc_stats_enable=1
 --FILE--
 <?php
 
-ini_set("xdebug.gc_stats_enable", 1);
-
-$data = xdebug_get_gc_stats();
-
-var_dump($data);
+echo file_get_contents(xdebug_get_gcstats_filename());
 --EXPECTF--
-array(0) {
-}
-
+## Garbage Collection Report ##
+Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
+----------|-------------|----------|---------------|--------------|------------|---------

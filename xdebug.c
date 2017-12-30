@@ -164,6 +164,9 @@ ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gc_stats_args, ZEND_SEND_BY_VAL, ZEND_RETURN_V
     ZEND_ARG_INFO(0, clear)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gcstats_filename, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(xdebug_set_filter_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 3)
 	ZEND_ARG_INFO(0, filter_group)
 	ZEND_ARG_INFO(0, filter_type)
@@ -218,6 +221,7 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_get_function_count,    xdebug_void_args)
 
 	PHP_FE(xdebug_get_gc_stats,          xdebug_get_gc_stats_args)
+    PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename)
 
 	PHP_FE(xdebug_dump_superglobals,     xdebug_void_args)
 	PHP_FE(xdebug_get_headers,           xdebug_void_args)
@@ -393,8 +397,9 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_BOOLEAN("xdebug.scream",                 "0",           PHP_INI_ALL,    OnUpdateBool,   do_scream,            zend_xdebug_globals, xdebug_globals)
 
 	/* GC Stats support */
-	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",        "0",           PHP_INI_ALL,    OnUpdateBool,   gc_stats_enabled,       zend_xdebug_globals, xdebug_globals)
-	STD_PHP_INI_BOOLEAN("xdebug.gc_show_report",         "0",           PHP_INI_ALL,    OnUpdateBool,   gc_show_report,       zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",        "0",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateBool,   gc_stats_enable,       zend_xdebug_globals, xdebug_globals)
+    STD_PHP_INI_ENTRY("xdebug.gc_stats_output_dir",  XDEBUG_TEMP_DIR,      PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_dir,  zend_xdebug_globals, xdebug_globals)
+    STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%c",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
 PHP_INI_END()
 
 static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
@@ -434,13 +439,15 @@ static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
 	xg->breakpoints_allowed  = 0;
 	xg->profiler_enabled     = 0;
 	xg->do_monitor_functions = 0;
-    xg->gc_runs              = NULL;
 
 	xg->filter_type_tracing       = XDEBUG_FILTER_NONE;
 	xg->filter_type_profiler      = XDEBUG_FILTER_NONE;
 	xg->filter_type_code_coverage = XDEBUG_FILTER_NONE;
 	xg->filters_tracing           = NULL;
 	xg->filters_code_coverage     = NULL;
+
+    xg->gc_stats_file = NULL;
+    xg->gc_stats_filename = NULL;
 
 	xdebug_llist_init(&xg->server, xdebug_superglobals_dump_dtor);
 	xdebug_llist_init(&xg->get, xdebug_superglobals_dump_dtor);
@@ -1016,22 +1023,6 @@ PHP_MSHUTDOWN_FUNCTION(xdebug)
 	return SUCCESS;
 }
 
-static void xdebug_llist_gcrun_dtor(void *dummy, void *elem)
-{
-    xdebug_gc_run *s = elem;
-
-    if (s) {
-        if (s->function_name) {
-            zend_string_release(s->function_name);
-        }
-        if (s->class_name) {
-            zend_string_release(s->class_name);
-        }
-        Z_TRY_DELREF(s->stack);
-        efree(s);
-    }
-}
-
 static void xdebug_llist_string_dtor(void *dummy, void *elem)
 {
 	char *s = elem;
@@ -1215,6 +1206,8 @@ PHP_RINIT_FUNCTION(xdebug)
 	XG(code_coverage_filter_offset) = zend_xdebug_filter_offset;
 	XG(previous_filename) = "";
 	XG(previous_file) = NULL;
+    XG(gc_stats_file) = NULL;
+    XG(gc_stats_filename) = NULL;
 
 	xdebug_init_auto_globals(TSRMLS_C);
 
@@ -1292,9 +1285,6 @@ PHP_RINIT_FUNCTION(xdebug)
 	XG(filters_tracing)           = xdebug_llist_alloc(xdebug_llist_string_dtor);
 	XG(filters_code_coverage)     = xdebug_llist_alloc(xdebug_llist_string_dtor);
 
-    /* Initialize gc statistics */
-    XG(gc_runs) = xdebug_llist_alloc(xdebug_llist_gcrun_dtor);
-
 	return SUCCESS;
 }
 
@@ -1337,6 +1327,10 @@ ZEND_MODULE_POST_ZEND_DEACTIVATE_D(xdebug)
 	xdebug_hash_destroy(XG(profile_functionname_refs));
 	XG(profile_filename_refs) = NULL;
 	XG(profile_functionname_refs) = NULL;
+
+    if (XG(gc_stats_filename)) {
+        xdfree(XG(gc_stats_filename));
+    }
 
 	if (XG(ide_key)) {
 		xdfree(XG(ide_key));
@@ -1407,14 +1401,6 @@ PHP_RSHUTDOWN_FUNCTION(xdebug)
 {
 	/* Signal that we're no longer in a request */
 	XG(in_execution) = 0;
-
-	if (xdebug_gc_stats_report_enabled()) {
-		xdebug_gc_stats_show_report();
-	}
-
-	/* Cleanup gc stats */
-    xdebug_llist_destroy(XG(gc_runs), NULL);
-    XG(gc_runs) = NULL;
 
 	return SUCCESS;
 }
@@ -1807,6 +1793,12 @@ void xdebug_execute_ex(zend_execute_data *execute_data TSRMLS_DC)
 			 * value, but we still have to free it. */
 			xdfree(xdebug_start_trace(NULL, STR_NAME_VAL(op_array->filename), XG(trace_options) TSRMLS_CC));
 		}
+
+        if (!XG(gc_stats_enabled) && XG(gc_stats_enable)) {
+            if (xdebug_gc_stats_init(STR_NAME_VAL(op_array->filename)) == SUCCESS) {
+                XG(gc_stats_enabled) = 1;
+            }
+        }
 	}
 
 	XG(level)++;
@@ -2453,6 +2445,15 @@ PHP_FUNCTION(xdebug_time_index)
 	RETURN_DOUBLE(xdebug_get_utime() - XG(start_time));
 }
 
+PHP_FUNCTION(xdebug_get_gcstats_filename)
+{
+    if (XG(gc_stats_filename)) {
+        RETURN_STRING(XG(gc_stats_filename));
+    } else {
+        RETURN_FALSE;
+    }
+}
+
 PHP_FUNCTION(xdebug_get_gc_stats)
 {
     xdebug_llist_element *le;
@@ -2465,33 +2466,6 @@ PHP_FUNCTION(xdebug_get_gc_stats)
     }
 
     array_init(return_value);
-    for (le = XDEBUG_LLIST_HEAD(XG(gc_runs)); le != NULL; le = XDEBUG_LLIST_NEXT(le)) {
-        run = XDEBUG_LLIST_VALP(le);
-
-        array_init(&run_zv);
-        add_assoc_long_ex(&run_zv, "collected", HASH_KEY_SIZEOF("collected"), run->collected);
-        add_assoc_long_ex(&run_zv, "duration", HASH_KEY_SIZEOF("duration"), run->duration);
-        add_assoc_long_ex(&run_zv, "memory_before", HASH_KEY_SIZEOF("memory_before"), run->memory_before);
-        add_assoc_long_ex(&run_zv, "memory_after", HASH_KEY_SIZEOF("memory_after"), run->memory_after);
-
-        if (run->function_name) {
-            add_assoc_str_ex(&run_zv, "function", HASH_KEY_SIZEOF("function"), zend_string_copy(run->function_name));
-        }
-
-        if (run->class_name) {
-            add_assoc_str_ex(&run_zv, "class", HASH_KEY_SIZEOF("class"), zend_string_copy(run->class_name));
-        }
-
-        add_assoc_zval_ex(&run_zv, "stack", HASH_KEY_SIZEOF("stack"), &(run->stack));
-        Z_TRY_ADDREF(run->stack);
-
-        add_next_index_zval(return_value, &run_zv);
-    }
-
-    if (clear) {
-        xdebug_llist_destroy(XG(gc_runs), NULL);
-        XG(gc_runs) = xdebug_llist_alloc(xdebug_llist_gcrun_dtor);
-    }
 }
 
 #if PHP_VERSION_ID >= 70100

@@ -2,10 +2,11 @@
 GC Stats: run gc_collect_cyles(); and collect stats
 --INI--
 zend.enable_gc=1
+xdebug.gc_stats_enable=1
 --FILE--
 <?php
 
-ini_set("xdebug.gc_stats_enable", 1);
+var_dump(ini_get("xdebug.gc_stats_enable"));
 
 for ($i = 0; $i < 100; $i++) {
     $a = new stdClass();
@@ -16,42 +17,10 @@ for ($i = 0; $i < 100; $i++) {
 }
 gc_collect_cycles();
 
-$data = xdebug_get_gc_stats();
-
-var_dump($data);
-
-$data = xdebug_get_gc_stats(true);
-echo count($data) . "\n";
-
-$data = xdebug_get_gc_stats();
-echo count($data) . "\n";
+echo file_get_contents(xdebug_get_gcstats_filename());
 --EXPECTF--
-array(1) {
-  [0]=>
-  array(6) {
-    ["collected"]=>
-    int(200)
-    ["duration"]=>
-    int(%d)
-    ["memory_before"]=>
-    int(%d)
-    ["memory_after"]=>
-    int(%d)
-    ["function"]=>
-    string(17) "gc_collect_cycles"
-    ["stack"]=>
-    array(1) {
-      [0]=>
-      array(3) {
-        ["file"]=>
-        string(%d) "%s"
-        ["line"]=>
-        int(12)
-        ["function"]=>
-        string(17) "gc_collect_cycles"
-      }
-    }
-  }
-}
-1
-0
+string(1) "1"
+## Garbage Collection Report ##
+Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
+----------|-------------|----------|---------------|--------------|------------|---------
+      200 |      2.00 % |  %s ms |        %d |       %d |   %s % | gc_collect_cycles

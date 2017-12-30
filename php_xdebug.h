@@ -119,6 +119,7 @@ PHP_FUNCTION(xdebug_clear_aggr_profiling_data);
 
 /* gc stats functions */
 PHP_FUNCTION(xdebug_get_gc_stats);
+PHP_FUNCTION(xdebug_get_gcstats_filename);
 
 /* misc functions */
 PHP_FUNCTION(xdebug_dump_superglobals);
@@ -294,9 +295,12 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	zend_bool  in_at;
 
 	/* garbage stats */
-	xdebug_llist *gc_runs;
-	zend_bool gc_stats_enabled;
-	zend_bool gc_show_report;
+    zend_bool    gc_stats_enable;
+	zend_bool    gc_stats_enabled;
+    char         *gc_stats_output_dir;
+    char         *gc_stats_output_name;
+    FILE         *gc_stats_file;
+    char         *gc_stats_filename;
 
 	/* in-execution checking */
 	zend_bool  in_execution;

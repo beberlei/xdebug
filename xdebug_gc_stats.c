@@ -34,18 +34,20 @@ int xdebug_gc_collect_cycles(void)
     uint32_t collected;
     xdebug_gc_run *run;
     zend_execute_data *execute_data;
+    zend_op_array *op_array;
     zend_function *current_function;
     long int memory;
     double start;
 
-    if (!XG(gc_stats_enabled) || XG(gc_runs) == NULL) {
+    if (!XG(gc_stats_enabled)) {
         return xdebug_old_gc_collect_cycles();
     }
+
+    execute_data = EG(current_execute_data);
 
     collected = GC_G(collected);
     start = xdebug_get_utime();
     memory = zend_memory_usage(0);
-    execute_data = EG(current_execute_data);
 
     ret = xdebug_old_gc_collect_cycles();
 
@@ -72,66 +74,101 @@ int xdebug_gc_collect_cycles(void)
 
     zend_fetch_debug_backtrace(&(run->stack), 0, DEBUG_BACKTRACE_IGNORE_ARGS, 0 TSRMLS_CC);
 
-    xdebug_llist_insert_next(XG(gc_runs), XDEBUG_LLIST_TAIL(XG(gc_runs)), run);
+    xdebug_gc_stats_print_run(run);
+
+    xdebug_gc_stats_run_free(run);
 
     return ret;
 }
 
-int xdebug_gc_stats_report_enabled()
+void xdebug_gc_stats_run_free(xdebug_gc_run *run)
 {
-    if (sapi_module.name && strcmp(sapi_module.name, "cli") == 0 && XG(gc_show_report) == 1) {
-        return 1;
+    if (run) {
+        if (run->function_name) {
+            zend_string_release(run->function_name);
+        }
+        if (run->class_name) {
+            zend_string_release(run->class_name);
+        }
+        zval_ptr_dtor(&(run->stack));
+        efree(run);
     }
-
-    return 0;
 }
 
-void xdebug_gc_stats_show_report()
+int xdebug_gc_stats_init(char *script_name TSRMLS_DC)
 {
-    zval *collected, *duration, *memory_before, *memory_after, *function, *class;
-    xdebug_llist_element *le;
-    xdebug_gc_run *run = NULL;
+    char *filename = NULL, *fname = NULL;
 
-    php_printf("## Garbage Collection Report ##\n");
-    php_printf("Found %d garbage collection runs in current script.\n\n", xdebug_llist_count(XG(gc_runs)));
-
-    php_printf("Collected | Efficiency%% | Duration | Memory Before | Memory After | Reduction%% | Function\n");
-    php_printf("----------|-------------|----------|---------------|--------------|------------|---------\n");
-
-    for (le = XDEBUG_LLIST_HEAD(XG(gc_runs)); le != NULL; le = XDEBUG_LLIST_NEXT(le)) {
-        run = XDEBUG_LLIST_VALP(le);
-
-        if (!run->function_name) {
-            php_printf(
-                "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | -\n",
-                run->collected,
-                (run->collected / 10000.0) * 100.0,
-                run->duration / 1000.0,
-                run->memory_before,
-                run->memory_after,
-                (1 - (float)run->memory_after) / (float)run->memory_before * 100.0
-            );
-        } else if (!run->class_name && run->function_name) {
-            php_printf(
-                "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s\n",
-                run->collected,
-                (run->collected / 10000.0) * 100.0,
-                run->duration / 1000.0,
-                run->memory_before,
-                run->memory_after,
-                ZSTR_VAL(run->function_name)
-            );
-        } else if (run->class_name && run->function_name) {
-            php_printf(
-                "%9d | %9.2f %% | %5.2f ms | %13d | %12d | %8.2f %% | %s::%s\n",
-                run->collected,
-                (run->collected / 10000.0) * 100.0,
-                run->duration / 1000.0,
-                run->memory_before,
-                run->memory_after,
-                ZSTR_VAL(run->class_name),
-                ZSTR_VAL(run->function_name)
-            );
-        }
+    if (!strlen(XG(gc_stats_output_name)) ||
+        xdebug_format_output_filename(&fname, XG(gc_stats_output_name), script_name) <= 0)
+    {
+        return FAILURE;
     }
+
+    if (IS_SLASH(XG(gc_stats_output_dir)[strlen(XG(gc_stats_output_dir)) - 1])) {
+        filename = xdebug_sprintf("%s%s", XG(gc_stats_output_dir), fname);
+    } else {
+        filename = xdebug_sprintf("%s%c%s", XG(gc_stats_output_dir), DEFAULT_SLASH, fname);
+    }
+    xdfree(fname);
+
+    XG(gc_stats_file) = xdebug_fopen(filename, "w", NULL, &XG(gc_stats_filename));
+    xdfree(filename);
+
+    if (!XG(gc_stats_file)) {
+        return FAILURE;
+    }
+
+    fprintf(XG(gc_stats_file), "## Garbage Collection Report ##\n");
+
+    fprintf(XG(gc_stats_file), "Collected | Efficiency%% | Duration | Memory Before | Memory After | Reduction%% | Function\n");
+    fprintf(XG(gc_stats_file), "----------|-------------|----------|---------------|--------------|------------|---------\n");
+
+    fflush(XG(gc_stats_file));
+
+    return SUCCESS;
+}
+
+void xdebug_gc_stats_print_run(xdebug_gc_run *run)
+{
+    if (!XG(gc_stats_file)) {
+        return;
+    }
+
+    if (!run->function_name) {
+        fprintf(XG(gc_stats_file),
+            "%9lu | %9.2f %% | %5.2f ms | %13lu | %12lu | %8.2f %% | -\n",
+            run->collected,
+            (run->collected / 10000.0) * 100.0,
+            run->duration / 1000.0,
+            run->memory_before,
+            run->memory_after,
+            (1 - (float)run->memory_after) / (float)run->memory_before * 100.0
+        );
+    } else if (!run->class_name && run->function_name) {
+        fprintf(XG(gc_stats_file),
+            "%9lu | %9.2f %% | %5.2f ms | %13lu | %12lu | %8.2f %% | %s\n",
+            run->collected,
+            (run->collected / 10000.0) * 100.0,
+            run->duration / 1000.0,
+            run->memory_before,
+            run->memory_after,
+            (1 - (float)run->memory_after) / (float)run->memory_before * 100.0,
+            ZSTR_VAL(run->function_name)
+        );
+    } else if (run->class_name && run->function_name) {
+        fprintf(XG(gc_stats_file),
+            "%9lu | %9.2f %% | %5.2f ms | %13lu | %12lu | %8.2f %% | %s::%s\n",
+            run->collected,
+            (run->collected / 10000.0) * 100.0,
+            run->duration / 1000.0,
+            run->memory_before,
+            run->memory_after,
+            (1 - (float)run->memory_after) / (float)run->memory_before * 100.0,
+            ZSTR_VAL(run->class_name),
+            ZSTR_VAL(run->function_name)
+        );
+    }
+
+    fflush(XG(gc_stats_file));
 }

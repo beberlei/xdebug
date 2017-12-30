@@ -1,9 +1,8 @@
 --TEST--
-GC Stats: show garbage collection report
+GC Stats: class with garbage
 --INI--
 zend.enable_gc=1
 xdebug.gc_stats_enable=1
-xdebug.gc_show_report=1
 --FILE--
 <?php
 
@@ -41,18 +40,18 @@ class Garbage {
 
 foo();
 (new Garbage())->produce();
+
+echo file_get_contents(xdebug_get_gcstats_filename());
 --EXPECTF--
 ## Garbage Collection Report ##
-Found 9 garbage collection runs in current script.
-
 Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
 ----------|-------------|----------|---------------|--------------|------------|---------
-     9998 |     99.98 % |  %s ms |       %d |       %d |    %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |    %s % | Garbage::produce
-        3 |      0.03 % |  %s ms |        %d |       %d |     %s % | gc_collect_cycles
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
+        0 |      0.00 % |  %s ms |        %d |       %d |  %s % | gc_collect_cycles

@@ -2,10 +2,10 @@
 GC Stats: stats about trigger garbage collection automatically
 --INI--
 zend.enable_gc=1
+xdebug.gc_stats_enable=1
 --FILE--
 <?php
 
-ini_set("xdebug.gc_stats_enable", 1);
 gc_enable();
 
 function foo() {
@@ -24,8 +24,12 @@ function bar() {
 
 foo();
 
-$data = xdebug_get_gc_stats();
+echo file_get_contents(xdebug_get_gcstats_filename());
 
-var_dump(count($data) >= 3);
 --EXPECTF--
-bool(true)
+## Garbage Collection Report ##
+Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
+----------|-------------|----------|---------------|--------------|------------|---------
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
+    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
