@@ -2443,7 +2443,6 @@ PHP_FUNCTION(xdebug_start_gcstats)
 {
 	char *fname = NULL;
 	size_t fname_len = 0;
-	char *gcstats_fname;
 	function_stack_entry *fse;
 
 	if (XG(gc_stats_enabled) == 0) {
