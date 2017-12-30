@@ -216,7 +216,7 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_code_coverage_started, xdebug_void_args)
 	PHP_FE(xdebug_get_function_count,    xdebug_void_args)
 
-    PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename)
+	PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename)
 
 	PHP_FE(xdebug_dump_superglobals,     xdebug_void_args)
 	PHP_FE(xdebug_get_headers,           xdebug_void_args)
