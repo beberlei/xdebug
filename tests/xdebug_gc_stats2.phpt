@@ -17,6 +17,7 @@ for ($i = 0; $i < 100; $i++) {
 gc_collect_cycles();
 
 echo file_get_contents(xdebug_get_gcstats_filename());
+unlink(xdebug_get_gcstats_filename());
 ?>
 --EXPECTF--
 string(1) "1"

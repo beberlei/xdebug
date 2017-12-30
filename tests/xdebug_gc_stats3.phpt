@@ -27,6 +27,7 @@ function bar()
 foo();
 
 $lines = file(xdebug_get_gcstats_filename());
+unlink(xdebug_get_gcstats_filename());
 
 var_dump(count($lines) >= 6);
 ?>

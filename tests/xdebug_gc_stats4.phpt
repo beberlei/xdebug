@@ -48,6 +48,8 @@ foo();
 (new Garbage())->produce();
 
 $data = file_get_contents(xdebug_get_gcstats_filename());
+unlink(xdebug_get_gcstats_filename());
+
 var_dump(substr_count($data, "bar") >= 3);
 var_dump(substr_count($data, "Garbage::produce") >= 4);
 var_dump(substr_count($data, "gc_collect_cycles") == 1);
