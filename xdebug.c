@@ -449,6 +449,7 @@ static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
 
 	xg->gc_stats_file = NULL;
 	xg->gc_stats_filename = NULL;
+	xg->gc_stats_enabled = 0;
 
 	xdebug_llist_init(&xg->server, xdebug_superglobals_dump_dtor);
 	xdebug_llist_init(&xg->get, xdebug_superglobals_dump_dtor);
@@ -1209,6 +1210,7 @@ PHP_RINIT_FUNCTION(xdebug)
 	XG(previous_file) = NULL;
 	XG(gc_stats_file) = NULL;
 	XG(gc_stats_filename) = NULL;
+	XG(gc_stats_enabled) = 0;
 
 	xdebug_init_auto_globals(TSRMLS_C);
 
