@@ -399,7 +399,7 @@ PHP_INI_BEGIN()
 	/* GC Stats support */
 	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",        "0",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateBool,   gc_stats_enable,       zend_xdebug_globals, xdebug_globals)
 	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_dir",  XDEBUG_TEMP_DIR,      PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_dir,  zend_xdebug_globals, xdebug_globals)
-	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%c",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%p",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
 PHP_INI_END()
 
 static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
