@@ -118,7 +118,6 @@ PHP_FUNCTION(xdebug_dump_aggr_profiling_data);
 PHP_FUNCTION(xdebug_clear_aggr_profiling_data);
 
 /* gc stats functions */
-PHP_FUNCTION(xdebug_get_gc_stats);
 PHP_FUNCTION(xdebug_get_gcstats_filename);
 
 /* misc functions */

@@ -160,10 +160,6 @@ ZEND_BEGIN_ARG_INFO_EX(xdebug_stop_code_coverage_args, ZEND_SEND_BY_VAL, ZEND_RE
 	ZEND_ARG_INFO(0, cleanup)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gc_stats_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
-    ZEND_ARG_INFO(0, clear)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gcstats_filename, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 ZEND_END_ARG_INFO()
 
@@ -220,7 +216,6 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_code_coverage_started, xdebug_void_args)
 	PHP_FE(xdebug_get_function_count,    xdebug_void_args)
 
-	PHP_FE(xdebug_get_gc_stats,          xdebug_get_gc_stats_args)
     PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename)
 
 	PHP_FE(xdebug_dump_superglobals,     xdebug_void_args)
@@ -2452,20 +2447,6 @@ PHP_FUNCTION(xdebug_get_gcstats_filename)
     } else {
         RETURN_FALSE;
     }
-}
-
-PHP_FUNCTION(xdebug_get_gc_stats)
-{
-    xdebug_llist_element *le;
-    zend_bool clear = 0;
-    xdebug_gc_run *run = NULL;
-    zval run_zv;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &clear) == FAILURE) {
-        return;
-    }
-
-    array_init(return_value);
 }
 
 #if PHP_VERSION_ID >= 70100
