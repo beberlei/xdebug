@@ -54,6 +54,7 @@
 #include "xdebug_code_coverage.h"
 #include "xdebug_com.h"
 #include "xdebug_filter.h"
+#include "xdebug_gc_stats.h"
 #include "xdebug_llist.h"
 #include "xdebug_mm.h"
 #include "xdebug_monitor.h"
@@ -62,7 +63,6 @@
 #include "xdebug_stack.h"
 #include "xdebug_superglobals.h"
 #include "xdebug_tracing.h"
-#include "xdebug_gc_stats.h"
 #include "usefulstuff.h"
 
 /* execution redirection functions */
@@ -160,9 +160,6 @@ ZEND_BEGIN_ARG_INFO_EX(xdebug_stop_code_coverage_args, ZEND_SEND_BY_VAL, ZEND_RE
 	ZEND_ARG_INFO(0, cleanup)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gcstats_filename_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(xdebug_start_gcstats_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
 	ZEND_ARG_INFO(0, fname)
 ZEND_END_ARG_INFO()
@@ -202,8 +199,8 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_dump_aggr_profiling_data, xdebug_dump_aggr_profiling_data_args)
 	PHP_FE(xdebug_clear_aggr_profiling_data, xdebug_void_args)
 
-	PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename_args)
-	PHP_FE(xdebug_start_gcstats,  xdebug_start_gcstats_args)
+	PHP_FE(xdebug_start_gcstats,         xdebug_start_gcstats_args)
+	PHP_FE(xdebug_get_gcstats_filename,  xdebug_void_args)
 
 	PHP_FE(xdebug_memory_usage,          xdebug_void_args)
 	PHP_FE(xdebug_peak_memory_usage,     xdebug_void_args)
@@ -397,9 +394,9 @@ PHP_INI_BEGIN()
 	STD_PHP_INI_BOOLEAN("xdebug.scream",                 "0",           PHP_INI_ALL,    OnUpdateBool,   do_scream,            zend_xdebug_globals, xdebug_globals)
 
 	/* GC Stats support */
-	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",        "0",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateBool,   gc_stats_enable,       zend_xdebug_globals, xdebug_globals)
-	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_dir",  XDEBUG_TEMP_DIR,      PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_dir,  zend_xdebug_globals, xdebug_globals)
-	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%p",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",    "0",               PHP_INI_SYSTEM|PHP_INI_PERDIR, OnUpdateBool,   gc_stats_enable,      zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_dir",  XDEBUG_TEMP_DIR,   PHP_INI_SYSTEM|PHP_INI_PERDIR, OnUpdateString, gc_stats_output_dir,  zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%p",      PHP_INI_SYSTEM|PHP_INI_PERDIR, OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
 PHP_INI_END()
 
 static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
@@ -2428,44 +2425,6 @@ PHP_FUNCTION(xdebug_clear_aggr_profiling_data)
 	zend_hash_clean(&XG(aggr_calls));
 
 	RETURN_TRUE;
-}
-
-PHP_FUNCTION(xdebug_get_gcstats_filename)
-{
-	if (XG(gc_stats_filename)) {
-		RETURN_STRING(XG(gc_stats_filename));
-	} else {
-		RETURN_FALSE;
-	}
-}
-
-PHP_FUNCTION(xdebug_start_gcstats)
-{
-	char *fname = NULL;
-	size_t fname_len = 0;
-	function_stack_entry *fse;
-
-	if (XG(gc_stats_enabled) == 0) {
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &fname, &fname_len) == FAILURE) {
-			return;
-		}
-
-		fse = xdebug_get_stack_frame(0 TSRMLS_CC);
-
-		if (xdebug_gc_stats_init(fname, fse->filename) == SUCCESS) {
-			XG(gc_stats_enabled) = 1;
-			RETVAL_STRING(XG(gc_stats_filename));
-			return;
-		} else {
-			php_error(E_NOTICE, "Garbage Collection statistics could not be started");
-		}
-
-		XG(gc_stats_enabled) = 0;
-		RETURN_FALSE;
-	} else {
-		php_error(E_NOTICE, "Garbage Collection statistics are already being collected.");
-		RETURN_FALSE;
-	}
 }
 
 PHP_FUNCTION(xdebug_memory_usage)

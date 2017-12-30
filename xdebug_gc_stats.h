@@ -20,18 +20,18 @@
 #define __XDEBUG_GC_STATS_H__
 
 typedef struct _xdebug_gc_run {
-    zend_long collected;
-    zend_long duration;
-    zend_long memory_before;
-    zend_long memory_after;
-    zend_string *function_name;
-    zend_string *class_name;
-    zval stack;
+	zend_long    collected;
+	zend_long    duration;
+	zend_long    memory_before;
+	zend_long    memory_after;
+	zend_string *function_name;
+	zend_string *class_name;
+	zval stack;
 } xdebug_gc_run;
 
 int (*xdebug_old_gc_collect_cycles)(void);
 int xdebug_gc_collect_cycles(void);
-int xdebug_gc_stats_init(char* fname, char *script_name);
+int xdebug_gc_stats_init(char *fname, char *script_name);
 void xdebug_gc_stats_print_run(xdebug_gc_run *run);
 void xdebug_gc_stats_run_free(xdebug_gc_run *run);
 
