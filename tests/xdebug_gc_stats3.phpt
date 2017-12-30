@@ -24,12 +24,8 @@ function bar() {
 
 foo();
 
-echo file_get_contents(xdebug_get_gcstats_filename());
+$lines = file(xdebug_get_gcstats_filename());
 
+var_dump(count($lines) >= 6);
 --EXPECTF--
-## Garbage Collection Report ##
-Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
-----------|-------------|----------|---------------|--------------|------------|---------
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
+bool(true)

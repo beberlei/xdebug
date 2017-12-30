@@ -41,17 +41,11 @@ class Garbage {
 foo();
 (new Garbage())->produce();
 
-echo file_get_contents(xdebug_get_gcstats_filename());
+$data = file_get_contents(xdebug_get_gcstats_filename());
+var_dump(substr_count($data, "bar") >= 3);
+var_dump(substr_count($data, "Garbage::produce") == 4);
+var_dump(substr_count($data, "gc_collect_cycles") == 1);
 --EXPECTF--
-## Garbage Collection Report ##
-Collected | Efficiency% | Duration | Memory Before | Memory After | Reduction% | Function
-----------|-------------|----------|---------------|--------------|------------|---------
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | bar
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
-    10000 |    100.00 % |  %s ms |       %d |       %d |   %s % | Garbage::produce
-        0 |      0.00 % |  %s ms |        %d |       %d |  %s % | gc_collect_cycles
+bool(true)
+bool(true)
+bool(true)
