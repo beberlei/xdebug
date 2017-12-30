@@ -12,6 +12,7 @@ $actual = xdebug_start_gcstats($filename);
 
 var_dump($actual === $filename);
 var_dump(xdebug_get_gcstats_filename());
+xdebug_stop_gcstats();
 unlink(xdebug_get_gcstats_filename());
 ?>
 --EXPECTF--

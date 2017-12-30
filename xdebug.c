@@ -1325,6 +1325,10 @@ ZEND_MODULE_POST_ZEND_DEACTIVATE_D(xdebug)
 	XG(profile_filename_refs) = NULL;
 	XG(profile_functionname_refs) = NULL;
 
+	if (XG(gc_stats_enabled)) {
+		xdebug_gc_stats_stop();
+	}
+
 	if (XG(gc_stats_filename)) {
 		xdfree(XG(gc_stats_filename));
 	}

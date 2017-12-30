@@ -133,6 +133,16 @@ int xdebug_gc_stats_init(char *fname, char *script_name)
 	return SUCCESS;
 }
 
+void xdebug_gc_stats_stop()
+{
+	XG(gc_stats_enabled) = 0;
+
+	if (XG(gc_stats_file)) {
+		fclose(XG(gc_stats_file));
+		XG(gc_stats_file) = NULL;
+	}
+}
+
 void xdebug_gc_stats_print_run(xdebug_gc_run *run)
 {
 	if (!XG(gc_stats_file)) {
@@ -220,3 +230,16 @@ PHP_FUNCTION(xdebug_start_gcstats)
 	}
 }
 /* }}} */
+
+/* {{{ proto void xdebug_stop_gcstats()
+   Stop collecting garbage collection statistics */
+PHP_FUNCTION(xdebug_stop_gcstats)
+{
+	if (XG(gc_stats_enabled) == 1) {
+		RETVAL_STRING(XG(gc_stats_filename));
+		xdebug_gc_stats_stop();
+	} else {
+		RETVAL_FALSE;
+		php_error(E_NOTICE, "Function trace was not started");
+	}
+}

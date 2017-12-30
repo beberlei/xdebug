@@ -48,6 +48,7 @@ foo();
 (new Garbage())->produce();
 
 $data = file_get_contents(xdebug_get_gcstats_filename());
+xdebug_stop_gcstats();
 unlink(xdebug_get_gcstats_filename());
 
 var_dump(substr_count($data, "bar") >= 3);
