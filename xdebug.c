@@ -393,8 +393,8 @@ PHP_INI_BEGIN()
 
 	/* GC Stats support */
 	STD_PHP_INI_BOOLEAN("xdebug.gc_stats_enable",        "0",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateBool,   gc_stats_enable,       zend_xdebug_globals, xdebug_globals)
-    STD_PHP_INI_ENTRY("xdebug.gc_stats_output_dir",  XDEBUG_TEMP_DIR,      PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_dir,  zend_xdebug_globals, xdebug_globals)
-    STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%c",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_dir",  XDEBUG_TEMP_DIR,      PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_dir,  zend_xdebug_globals, xdebug_globals)
+	STD_PHP_INI_ENTRY("xdebug.gc_stats_output_name", "gcstats.%c",           PHP_INI_SYSTEM|PHP_INI_PERDIR,    OnUpdateString, gc_stats_output_name, zend_xdebug_globals, xdebug_globals)
 PHP_INI_END()
 
 static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
@@ -441,8 +441,8 @@ static void php_xdebug_init_globals (zend_xdebug_globals *xg TSRMLS_DC)
 	xg->filters_tracing           = NULL;
 	xg->filters_code_coverage     = NULL;
 
-    xg->gc_stats_file = NULL;
-    xg->gc_stats_filename = NULL;
+	xg->gc_stats_file = NULL;
+	xg->gc_stats_filename = NULL;
 
 	xdebug_llist_init(&xg->server, xdebug_superglobals_dump_dtor);
 	xdebug_llist_init(&xg->get, xdebug_superglobals_dump_dtor);
@@ -1201,8 +1201,8 @@ PHP_RINIT_FUNCTION(xdebug)
 	XG(code_coverage_filter_offset) = zend_xdebug_filter_offset;
 	XG(previous_filename) = "";
 	XG(previous_file) = NULL;
-    XG(gc_stats_file) = NULL;
-    XG(gc_stats_filename) = NULL;
+	XG(gc_stats_file) = NULL;
+	XG(gc_stats_filename) = NULL;
 
 	xdebug_init_auto_globals(TSRMLS_C);
 
@@ -1323,9 +1323,9 @@ ZEND_MODULE_POST_ZEND_DEACTIVATE_D(xdebug)
 	XG(profile_filename_refs) = NULL;
 	XG(profile_functionname_refs) = NULL;
 
-    if (XG(gc_stats_filename)) {
-        xdfree(XG(gc_stats_filename));
-    }
+	if (XG(gc_stats_filename)) {
+		xdfree(XG(gc_stats_filename));
+	}
 
 	if (XG(ide_key)) {
 		xdfree(XG(ide_key));
@@ -1789,11 +1789,11 @@ void xdebug_execute_ex(zend_execute_data *execute_data TSRMLS_DC)
 			xdfree(xdebug_start_trace(NULL, STR_NAME_VAL(op_array->filename), XG(trace_options) TSRMLS_CC));
 		}
 
-        if (!XG(gc_stats_enabled) && XG(gc_stats_enable)) {
-            if (xdebug_gc_stats_init(STR_NAME_VAL(op_array->filename)) == SUCCESS) {
-                XG(gc_stats_enabled) = 1;
-            }
-        }
+		if (!XG(gc_stats_enabled) && XG(gc_stats_enable)) {
+			if (xdebug_gc_stats_init(STR_NAME_VAL(op_array->filename)) == SUCCESS) {
+				XG(gc_stats_enabled) = 1;
+			}
+		}
 	}
 
 	XG(level)++;
