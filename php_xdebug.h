@@ -295,12 +295,12 @@ ZEND_BEGIN_MODULE_GLOBALS(xdebug)
 	zend_bool  in_at;
 
 	/* garbage stats */
-    zend_bool    gc_stats_enable;
+	zend_bool    gc_stats_enable;
 	zend_bool    gc_stats_enabled;
-    char         *gc_stats_output_dir;
-    char         *gc_stats_output_name;
-    FILE         *gc_stats_file;
-    char         *gc_stats_filename;
+	char         *gc_stats_output_dir;
+	char         *gc_stats_output_name;
+	FILE         *gc_stats_file;
+	char         *gc_stats_filename;
 
 	/* in-execution checking */
 	zend_bool  in_execution;
