@@ -176,3 +176,47 @@ void xdebug_gc_stats_print_run(xdebug_gc_run *run)
 
 	fflush(XG(gc_stats_file));
 }
+
+/* {{{ proto void xdebug_get_gcstats_filename()
+   Returns the name of the current garbage collection statistics report file */
+PHP_FUNCTION(xdebug_get_gcstats_filename)
+{
+	if (XG(gc_stats_filename)) {
+		RETURN_STRING(XG(gc_stats_filename));
+	} else {
+		RETURN_FALSE;
+	}
+}
+/* }}} */
+
+/* {{{ proto void xdebug_start_gcstats([string $fname])
+   Start collecting garbage collection statistics */
+PHP_FUNCTION(xdebug_start_gcstats)
+{
+	char                 *fname = NULL;
+	size_t                fname_len = 0;
+	function_stack_entry *fse;
+
+	if (XG(gc_stats_enabled) == 0) {
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &fname, &fname_len) == FAILURE) {
+			return;
+		}
+
+		fse = xdebug_get_stack_frame(0 TSRMLS_CC);
+
+		if (xdebug_gc_stats_init(fname, fse->filename) == SUCCESS) {
+			XG(gc_stats_enabled) = 1;
+			RETVAL_STRING(XG(gc_stats_filename));
+			return;
+		} else {
+			php_error(E_NOTICE, "Garbage Collection statistics could not be started");
+		}
+
+		XG(gc_stats_enabled) = 0;
+		RETURN_FALSE;
+	} else {
+		php_error(E_NOTICE, "Garbage Collection statistics are already being collected.");
+		RETURN_FALSE;
+	}
+}
+/* }}} */
