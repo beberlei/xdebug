@@ -160,7 +160,11 @@ ZEND_BEGIN_ARG_INFO_EX(xdebug_stop_code_coverage_args, ZEND_SEND_BY_VAL, ZEND_RE
 	ZEND_ARG_INFO(0, cleanup)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gcstats_filename, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_BEGIN_ARG_INFO_EX(xdebug_get_gcstats_filename_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(xdebug_start_gcstats_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 0)
+	ZEND_ARG_INFO(0, fname)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(xdebug_set_filter_args, ZEND_SEND_BY_VAL, ZEND_RETURN_VALUE, 3)
@@ -198,6 +202,9 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_dump_aggr_profiling_data, xdebug_dump_aggr_profiling_data_args)
 	PHP_FE(xdebug_clear_aggr_profiling_data, xdebug_void_args)
 
+	PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename_args)
+	PHP_FE(xdebug_start_gcstats,  xdebug_start_gcstats_args)
+
 	PHP_FE(xdebug_memory_usage,          xdebug_void_args)
 	PHP_FE(xdebug_peak_memory_usage,     xdebug_void_args)
 	PHP_FE(xdebug_time_index,            xdebug_void_args)
@@ -215,8 +222,6 @@ zend_function_entry xdebug_functions[] = {
 	PHP_FE(xdebug_get_code_coverage,     xdebug_void_args)
 	PHP_FE(xdebug_code_coverage_started, xdebug_void_args)
 	PHP_FE(xdebug_get_function_count,    xdebug_void_args)
-
-	PHP_FE(xdebug_get_gcstats_filename,  xdebug_get_gcstats_filename)
 
 	PHP_FE(xdebug_dump_superglobals,     xdebug_void_args)
 	PHP_FE(xdebug_get_headers,           xdebug_void_args)
