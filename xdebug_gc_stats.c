@@ -30,13 +30,13 @@ ZEND_EXTERN_MODULE_GLOBALS(xdebug)
 
 int xdebug_gc_collect_cycles(void)
 {
-	int ret;
-	uint32_t collected;
-	xdebug_gc_run *run;
+	int                ret;
+	uint32_t           collected;
+	xdebug_gc_run     *run;
 	zend_execute_data *execute_data;
-	zend_function *current_function;
-	long int memory;
-	double start;
+	zend_function     *current_function;
+	long int           memory;
+	double             start;
 
 	if (!XG(gc_stats_enabled)) {
 		return xdebug_old_gc_collect_cycles();
@@ -94,7 +94,7 @@ void xdebug_gc_stats_run_free(xdebug_gc_run *run)
 	}
 }
 
-int xdebug_gc_stats_init(char* fname, char *script_name)
+int xdebug_gc_stats_init(char *fname, char *script_name)
 {
 	char *filename = NULL;
 
